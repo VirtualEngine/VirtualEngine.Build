@@ -148,10 +148,10 @@ function Get-ModuleManifestProperty {
 .DESCRIPTION
     The Get-ModuleFiles cmdlets gets a list of files to be included for a module release.
 #>
-function Get-ModuleFiles {
+function Get-ModuleFile {
     [CmdletBinding(DefaultParameterSetName='Path')]
     [OutputType([System.IO.FileInfo])]
-    Param (
+    param (
         [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName='Path')]
         [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string] $Path = (Get-Location -PSProvider FileSystem),
         
@@ -159,25 +159,28 @@ function Get-ModuleFiles {
         [ValidateNotNullOrEmpty()] [string[]] $LiteralPath
     )
 
-    Begin {
+    begin {
         
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             ## Resolve path
             $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path);
-        } else {
+        }
+        else {
             ## Set $Path reference to the literal path
             $Path = $LiteralPath;
         } # end if
 
         ## Test we have a directory
-        if (-not(Test-Path $Path -PathType Container)) { throw ("Not a valid directory path '{0}'." -f $Path); }
+        if (-not(Test-Path $Path -PathType Container)) {
+            throw ("Not a valid directory path '{0}'." -f $Path);
+        }
 
     } #end begin
 
-    Process {
+    process {
 
         $moduleFiles = Get-ChildItem -Path $Path -Exclude '.git';
-        $ignoredFiles = GetModuleExcludedFiles -Path $Path;
+        $ignoredFiles = GetModuleExcludedFile -Path $Path;
 
         foreach ($moduleFile in $moduleFiles) {
             Write-Verbose ("Checking for excluded file '{0}'." -f $moduleFile.FullName);
@@ -202,7 +205,7 @@ function Get-ModuleFiles {
 function Set-ScriptSigntaure {
     [CmdletBinding(DefaultParameterSetName='Path')]
     [OutputType([System.Management.Automation.Signature])]
-    Param (
+    param (
         [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName='Path')]
         [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string[]] $Path = (Get-Location -PSProvider FileSystem),
         
@@ -267,7 +270,7 @@ function Set-ScriptSigntaure {
 function New-ModuleLicense {
     [CmdletBinding(DefaultParameterSetName='Path')]
     [OutputType([System.IO.FileInfo])]
-    Param (
+    param (
         [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName='Path')]
         [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string[]] $Path = (Get-Location -PSProvider FileSystem),
 
@@ -284,7 +287,7 @@ function New-ModuleLicense {
         [AllowNull()] [string] $Product = ''
     )
 
-    Begin {
+    begin {
 
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             ## Resolve each path
@@ -299,7 +302,7 @@ function New-ModuleLicense {
 
     } # end begin
 
-    Process {
+    process {
 
         ## Process each resolved path
         foreach ($resolvedPath in $Path) {
@@ -312,7 +315,7 @@ function New-ModuleLicense {
             Set-Content -Path $resolvedPath -Value $license -Encoding Ascii -Force;
         } # end foreach
     } # end process
-}
+} #end function New-ModuleLicense
 
 #endregion Public Functions
 
@@ -328,7 +331,7 @@ function New-ModuleLicense {
 .NOTES
     This is an internal module function that is not intended to be called directly.
 #>
-function GetModuleExcludedFiles {
+function GetModuleExcludedFile {
     [CmdletBinding(DefaultParameterSetName='Path')]
     [OutputType([System.IO.FileInfo])]
     Param (
@@ -339,27 +342,34 @@ function GetModuleExcludedFiles {
         [ValidateNotNullOrEmpty()] [string[]] $LiteralPath
     )
 
-    Begin {
+    begin {
 
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             ## Resolve path
             $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path);
-        } else {
+        }
+        else {
             ## Set $Path reference to the literal path
             $Path = $LiteralPath;
         } # end if
 
         ## Test we have a directory
-        if (-not(Test-Path $Path -PathType Container)) { Write-Error ("Not a valid directory path '{0}'." -f $Path); }
+        if (-not(Test-Path $Path -PathType Container)) {
+            Write-Error ("Not a valid directory path '{0}'." -f $Path);
+        }
 
         $gitAttributesPath = Join-Path $Path '.gitattributes';
-        if (-not(Test-Path $gitAttributesPath -PathType Leaf)) { Write-Error ("No valid .gitattributes found in path '{0}'." -f $Path); }
+        if (-not(Test-Path $gitAttributesPath -PathType Leaf)) {
+            Write-Error ("No valid .gitattributes found in path '{0}'." -f $Path);
+        }
 
         $gitIgnorePath = Join-Path $Path '.gitignore';
-        if (-not(Test-Path $gitIgnorePath -PathType Leaf)) { Write-Error ("No valid .gitignore found in path '{0}'." -f $Path); }
-    }
+        if (-not(Test-Path $gitIgnorePath -PathType Leaf)) {
+            Write-Error ("No valid .gitignore found in path '{0}'." -f $Path);
+        }
+    } #end begin
 
-    Process {
+    process {
         
         ## Parse .gitignore
         if (-not([string]::IsNullOrEmpty($gitIgnorePath))) {
@@ -382,8 +392,8 @@ function GetModuleExcludedFiles {
                 if (Test-Path -Path $gitIgnorePath) {
                     Write-Output (Get-Item -Path (Join-Path $Path $gitIgnore));
                 }
-            }
-        }
+            } #end foreach gitIgnore
+        } #end if
 
         ## Parse .gitattributes
         if (-not([string]::IsNullOrEmpty($gitAttributesPath))) {
@@ -399,10 +409,10 @@ function GetModuleExcludedFiles {
                 if (Test-Path -Path $gitAttributePath) {
                     Write-Output (Get-Item -Path (Join-Path $Path $gitAttribute));
                 }
-            }
-        }
-    }
-}
+            } #end foreach
+        } #end if
+    } #end process
+} #end function GetModuleExcludedFile
 
 #endregion Private Functions
 
