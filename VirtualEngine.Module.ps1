@@ -96,37 +96,38 @@ function Get-ModuleManifest {
 function Get-ModuleManifestProperty {
    [CmdletBinding(DefaultParameterSetName='Path')]
    # [OutputType([System.String])]
-    Param(
-        [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName='Path')]
-        [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string[]] $Path = (Get-Location -PSProvider FileSystem),
+    param(
+        [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Path')]
+        [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [System.String[]] $Path = (Get-Location -PSProvider FileSystem),
         
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'LiteralPath')]
-        [ValidateNotNullOrEmpty()] [string[]] $LiteralPath,
+        [ValidateNotNullOrEmpty()] [System.String[]] $LiteralPath,
 
-        [Parameter(HelpMessage="Module manifest property to return.", Position=1, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [Parameter(Position=1, Mandatory = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = 'Module manifest property to return.')]
         [ValidateSet('Author','ClrVersion','CompanyName','Copyright','Definition','Description','DotNetFrameworkVersion','ExportedAliases',
         'ExportedCmdlets','ExportedCommands','ExportedFormatFiles','ExportedFunctions','ExportedTypeFiles','ExportedVariables',
         'ExportedWorkflows','FileList','Guid','HelpInfoUri','LogPipelineExectuionDetails','ModuleBase','ModuleList','ModuleType',
         'Name','NestedModules','OnRemove','Path','PowerShellHostName','PowerShellHostVersion','PowerShellVersion','Prefix',
         'PrivateData','ProcessorArchitecture','RequiredAssemblies','RootModule','Scripts','SessionState','Version')]
-        [string] $Property,
+        [System.String] $Property,
 
-        [Parameter(HelpMessage='Default value to return if the property is not found.', Position=2, ValueFromPipelineByPropertyName=$true)]
-        [AllowNull()] [string] $Default = $null
+        [Parameter(Position = 2, ValueFromPipelineByPropertyName = $true, HelpMessage='Default value to return if the property is not found.')]
+        [AllowNull()] [System.String] $Default = $null
     )
 
-    Begin {
+    begin {
 
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             ## Resolve path
             $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path);
-        } else {
+        }
+        else {
             ## Set $Path reference to the literal path
             $Path = $LiteralPath;
         } # end if
     }
 
-    Process {
+    process {
         
         foreach ($resolvedPath in $Path) {
             ## Get the hashtable of module manifest key/value pairs
@@ -136,7 +137,9 @@ function Get-ModuleManifestProperty {
                 ## Invalid or null property, so return the default value
                 return $Default;
             }
-            else { return $moduleManifest.$Property; }
+            else {
+                return $moduleManifest.$Property;
+            }
 
         } #end foreach
     }
@@ -153,13 +156,13 @@ function Get-ModuleFile {
     [OutputType([System.IO.FileInfo])]
     param (
         [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName='Path')]
-        [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string] $Path = (Get-Location -PSProvider FileSystem),
+        [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [System.String] $Path = (Get-Location -PSProvider FileSystem),
         
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'LiteralPath')]
-        [ValidateNotNullOrEmpty()] [string[]] $LiteralPath,
+        [ValidateNotNullOrEmpty()] [System.String[]] $LiteralPath,
 
         [Parameter(Position = 1, ValueFromPipelineByPropertyName = $true)]
-        [AllowEmptyCollection()] [string[]] $Exclude = @()
+        [AllowEmptyCollection()] [System.String[]] $Exclude = @()
     )
 
     begin {
@@ -238,13 +241,16 @@ function Set-ScriptSigntaure {
             for ($i = 0; $i -lt $Path.Length; $i++) { 
                 $Path[$i] = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path);
             }
-        } else {
+        }
+        else {
             ## Set $Path reference to the literal path(s)
             $Path = $LiteralPath;
         } # end if
 
         $codeSigningCert = Get-ChildItem -Path Cert:\ -CodeSigningCert -Recurse | Where Thumbprint -eq $Thumbprint;
-        if (!$codeSigningCert) { throw ("Invalid certificate thumbprint '{0}'." -f $Thumbprint); }
+        if (!$codeSigningCert) {
+            throw ("Invalid certificate thumbprint '{0}'." -f $Thumbprint);
+        }
 
     } # end begin
 
@@ -280,6 +286,13 @@ function Set-ScriptSigntaure {
 
     Creates a new MIT 'LICENSE' file in the current directory stamped with the
     current year and licensed to 'Virtual Engine Limited'.
+
+.EXAMPLE
+    New-ModuleLicense -Path .\LICENSE.txt -FullName 'Virtual Engine Limited' -Project 'Virtual Engine Build' -LicenseType GPLv3
+
+    Creates a new GPL v3 'LICENSE.txt' file in the current directory stamped with the
+    current year, licensed to 'Virtual Engine Limited' with a project name of
+    'Virtual Engine Build'.
 #>
 function New-ModuleLicense {
     [CmdletBinding(DefaultParameterSetName='Path')]
@@ -298,7 +311,7 @@ function New-ModuleLicense {
         [ValidateNotNullOrEmpty()] [string] $FullName,
         
         [Parameter(Position = 2, ValueFromPipelineByPropertyName = $true)]
-        [AllowNull()] [string] $Product = ''
+        [ValidateNotNull()] [string] $Project = ''
     )
 
     begin {
@@ -324,7 +337,7 @@ function New-ModuleLicense {
             $license = $Licenses[$LicenseType];
             $license = $license -replace '{year}', (Get-Date).Year;
             $license = $license -replace '{fullname}', $FullName;
-            $license = $license -replace '{project}', $Product;
+            $license = $license -replace '{project}', $Project;
 
             Set-Content -Path $resolvedPath -Value $license -Encoding Ascii -Force;
         } # end foreach
