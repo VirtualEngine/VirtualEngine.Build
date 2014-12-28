@@ -1,0 +1,7 @@
+*.ps1 -crlf
+*.psm1 -crlf
+*.psd1 -crlf
+
+.gitattributes export-ignore
+.gitignore export-ignore
+Build.ps1 export-ignore
