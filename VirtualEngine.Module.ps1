@@ -156,7 +156,10 @@ function Get-ModuleFile {
         [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string] $Path = (Get-Location -PSProvider FileSystem),
         
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'LiteralPath')]
-        [ValidateNotNullOrEmpty()] [string[]] $LiteralPath
+        [ValidateNotNullOrEmpty()] [string[]] $LiteralPath,
+
+        [Parameter(Position = 1, ValueFromPipelineByPropertyName = $true)]
+        [AllowEmptyCollection()] [string[]] $Exclude = @()
     )
 
     begin {
@@ -179,13 +182,22 @@ function Get-ModuleFile {
 
     process {
 
-        $moduleFiles = Get-ChildItem -Path $Path -Exclude '.git';
+        $moduleFiles = Get-ChildItem -Path $Path -Exclude '.git' -Recurse;
         $ignoredFiles = GetModuleExcludedFile -Path $Path;
 
         foreach ($moduleFile in $moduleFiles) {
             Write-Verbose ("Checking for excluded file '{0}'." -f $moduleFile.FullName);
-            
-            if ($ignoredFiles.FullName -notcontains $moduleFile.FullName) {
+
+            ## Check whether the file has been manually excluded
+            $isExcluded = $false;
+            foreach ($excludedFile in $Exclude) {
+                if ($moduleFile.FullName -Like $excludedFile) {
+                    $isExcluded = $true;
+                    Write-Verbose ("File/directory '{0}' has been manually excluded." -f $moduleFile);
+                }
+            }
+           
+            if ((-not $isExcluded) -and ($ignoredFiles.FullName -NotContains $moduleFile.FullName)) {
                 Write-Output $moduleFile;
             }
         } # end foreach
@@ -219,7 +231,7 @@ function Set-ScriptSigntaure {
         [ValidateNotNullOrEmpty()] [string] $TimeStampServer = "http://timestamp.verisign.com/scripts/timestamp.dll"
     )
 
-    Begin {
+    begin {
 
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             ## Resolve each path
@@ -236,7 +248,7 @@ function Set-ScriptSigntaure {
 
     } # end begin
 
-    Process {
+    process {
 
         ## Process each resolved path
         foreach ($resolvedPath in $Path) {
@@ -255,30 +267,32 @@ function Set-ScriptSigntaure {
                 Write-Output $signResult;
             }
         } # end foreach
-
     } # end process
-}
+} #end function Set-ScriptSignature
 
 <#
 .SYNOPSIS
-    Sets .
+    Creates a new license file.
 .DESCRIPTION
-    Function description.
+    Creates a new license file of either the GPLv2 or MIT license type.
 .EXAMPLE
-    Function example.
+    New-ModuleLicense -Path .\LICENSE -FullName 'Virtual Engine Limited'
+
+    Creates a new MIT 'LICENSE' file in the current directory stamped with the
+    current year and licensed to 'Virtual Engine Limited'.
 #>
 function New-ModuleLicense {
     [CmdletBinding(DefaultParameterSetName='Path')]
     [OutputType([System.IO.FileInfo])]
     param (
         [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName='Path')]
-        [ValidateNotNullOrEmpty()] [Alias('PSPath','FullName')] [string[]] $Path = (Get-Location -PSProvider FileSystem),
+        [ValidateNotNullOrEmpty()] [Alias('PSPath')] [string[]] $Path = (Get-Location -PSProvider FileSystem),
 
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'LiteralPath')]
         [ValidateNotNullOrEmpty()] [string[]] $LiteralPath,
 
-        [Parameter(Mandatory = $true, Position = 1, ValueFromPipelineByPropertyName = $true)]
-        [ValidateSet('MIT','GPLv2')] [string] $LicenseType = 'MIT',
+        [Parameter(Position = 1, ValueFromPipelineByPropertyName = $true)]
+        [ValidateSet('Apache','MIT','GPLv2','GPLv3')] [string] $LicenseType = 'MIT',
 
         [Parameter(Mandatory = $true, Position = 2, ValueFromPipelineByPropertyName = $true)]
         [ValidateNotNullOrEmpty()] [string] $FullName,
@@ -308,7 +322,7 @@ function New-ModuleLicense {
         foreach ($resolvedPath in $Path) {
             
             $license = $Licenses[$LicenseType];
-            $license = $license -replace '{year}', (Get-Date).ToString("yyyyMMdd");
+            $license = $license -replace '{year}', (Get-Date).Year;
             $license = $license -replace '{fullname}', $FullName;
             $license = $license -replace '{project}', $Product;
 
@@ -358,12 +372,12 @@ function GetModuleExcludedFile {
             Write-Error ("Not a valid directory path '{0}'." -f $Path);
         }
 
-        $gitAttributesPath = Join-Path $Path '.gitattributes';
+        $gitAttributesPath = Join-Path -Path $Path -ChildPath '.gitattributes';
         if (-not(Test-Path $gitAttributesPath -PathType Leaf)) {
             Write-Error ("No valid .gitattributes found in path '{0}'." -f $Path);
         }
 
-        $gitIgnorePath = Join-Path $Path '.gitignore';
+        $gitIgnorePath = Join-Path -Path $Path -ChildPath '.gitignore';
         if (-not(Test-Path $gitIgnorePath -PathType Leaf)) {
             Write-Error ("No valid .gitignore found in path '{0}'." -f $Path);
         }
@@ -379,7 +393,7 @@ function GetModuleExcludedFile {
                 
                 ## Check whether we have a directory
                 if ($gitIgnore.Contains('/')) {
-                    if (-not($gitIgnore.StartsWith('/'))) {
+                    if (-not ($gitIgnore.StartsWith('/'))) {
                         ## Test path requires a leading \
                         $gitIgnore = "\{0}" -f $gitIgnore;
                     }
@@ -387,10 +401,10 @@ function GetModuleExcludedFile {
                 }
 
                 $gitIgnore = $gitIgnore.Trim();
-                $gitIgnorePath = Join-Path $Path $gitIgnore;
+                $gitIgnorePath = Join-Path -Path $Path -ChildPath $gitIgnore;
 
                 if (Test-Path -Path $gitIgnorePath) {
-                    Write-Output (Get-Item -Path (Join-Path $Path $gitIgnore));
+                    Write-Output (Get-Item -Path (Join-Path -Path $Path -ChildPath $gitIgnore));
                 }
             } #end foreach gitIgnore
         } #end if
