@@ -1,25 +1,10 @@
 <#
- .Synopsis
-    Create a new Nugut Specification document.
- .DESCRIPTION
+.SYNOPSIS
+    Create a new Nuget Specification document.
+.DESCRIPTION
     The New-NugetSpec cmdlet creates a new Nuget .nuspec Xml document.
- .EXAMPLE
+.EXAMPLE
     Get-ModuleManifest -Path .\VirtualEngine-Exmaple | New-NugetSpec -LicenseUrl 'http://gihub.com/virtualengine/example/LICENSE'
-
- .EXAMPLE
-    Another example of how to use this cmdlet
- .INPUTS
-    Inputs to this cmdlet (if any)
- .OUTPUTS
-    Output from this cmdlet (if any)
- .NOTES
-    General notes
- .COMPONENT
-    The component this cmdlet belongs to
- .ROLE
-    The role this cmdlet belongs to
- .FUNCTIONALITY
-    The functionality that best describes this cmdlet
 #>
 function New-NuGetNuspec {
      [CmdletBinding(DefaultParameterSetName='Manifest', HelpUri = 'http://github.com/virtualengine/Build')]
@@ -76,10 +61,7 @@ function New-NuGetNuspec {
          [Switch] $DateStampVersion
      )
  
-     Begin {
-     } #end begin
-     
-     Process {
+     process {
 
         if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
             $Id = $InputObject.Name.Replace('.','-');
@@ -108,8 +90,12 @@ function New-NuGetNuspec {
         [ref] $null = $titleNode.AppendChild($nuspec.CreateTextNode($Title));
 
         $versionNode = $metadata.AppendChild($nuspec.CreateElement('version'));
-        if ($DateStampVersion) { [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode("$Version.$((Get-Date).ToString('yyyyMMdd'))")); }
-        else { [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode($Version)); }
+        if ($DateStampVersion) {
+            [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode("$Version.$((Get-Date).ToString('yyyyMMdd'))"));
+        }
+        else {
+            [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode($Version));
+        }
 
         $authorsNode = $metadata.AppendChild($nuspec.CreateElement('authors'));
         [ref] $null = $authorsNode.AppendChild($nuspec.CreateTextNode([string]::Join(',', $Authors)));
@@ -145,8 +131,5 @@ function New-NuGetNuspec {
         Write-Output $nuspec;
 
      } #end process
-
-     End {
-     } #end end
- }
+} #end function New-NuGetNuspec
  
