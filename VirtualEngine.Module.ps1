@@ -185,7 +185,7 @@ function Get-ModuleFile {
 
     process {
 
-        $moduleFiles = Get-ChildItem -Path $Path -Exclude '.git' -Recurse;
+        $moduleFiles = Get-ChildItem -Path $Path -Exclude '.git';
         $ignoredFiles = GetModuleExcludedFile -Path $Path;
 
         foreach ($moduleFile in $moduleFiles) {
@@ -217,7 +217,7 @@ function Get-ModuleFile {
 
     This example signs the 'Example.psm1' file in the current path using the certificate.
 #>
-function Set-ScriptSigntaure {
+function Set-ScriptSignature {
     [CmdletBinding(DefaultParameterSetName='Path')]
     [OutputType([System.Management.Automation.Signature])]
     param (
