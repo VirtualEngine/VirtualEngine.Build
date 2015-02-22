@@ -74,7 +74,7 @@ function Convert-ToVersionArray {
     #>
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)] [System.String] $InputObject
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)] [ValidatePattern('[0-9]+(\.([0-9]+|\*)){1,3}')] [System.String] $InputObject
     )
     begin {
         $InputObject = $InputObject.TrimEnd('.').Trim();
@@ -88,17 +88,14 @@ function Convert-ToVersionArray {
         if ($versionParts.Length -gt 4) {
             Write-Warning ('Version string contains {0} parts. The maximum number of parts supported is 4.' -f $versionParts.Length);
         }
-        try {
-            for ($i = 0; $i -lt $versionParts.Length; $i++) {
-                if ($i -le 3) {
-                    ## Only convert the first 4 numbers.
-                    $version[$i] = [System.Int32]::Parse($versionParts[$i]);
-                }
-            } #end for
-        } #end try
-        catch {
-            Write-Error ('Error parsing string ''{0}''. Ensure that $InputObject only includes numbers and periods.' -f $InputObject);
-        } #end catch
+        for ($i = 0; $i -lt $versionParts.Length -and $i -lt 4; $i++) {
+            try {
+                $version[$i] = [System.Int32]::Parse($versionParts[$i]);
+            } #end try
+            catch {
+                Write-Error ('Error parsing string ''{0}''. Ensure that $InputObject only includes numbers and periods.' -f $InputObject);
+            } #end catch
+        } #end for
         Write-Output $version -NoEnumerate;
     } #end process
 } #end function Convert-ToAssemblyVersionString
