@@ -46,6 +46,10 @@ Describe "Convert-ToVersionArray" {
         [String]::Join(',', (Convert-ToVersionArray -InputObject '1.2.3.4.5' -WarningAction SilentlyContinue)) | Should Be ([String]::Join(',', @(1,2,3,4)));
     }
 
+    It "truncates prefixed v1.2.3.4.5 to 1,2,3,4" {
+        [String]::Join(',', (Convert-ToVersionArray -InputObject 'V1.2.3.4')) | Should Be ([String]::Join(',', @(1,2,3,4)));
+    }
+
     It "throws on invalid version string '1'." {
         { Convert-ToVersionArray -InputObject '1' -ErrorAction Stop } | Should Throw;
     }
@@ -60,27 +64,17 @@ Describe "Convert-ToVersionArray" {
 
 }
 
-Describe "Get-GitAssemblyVersionString" {
+Describe "Get-GitVersionString" {
 
+    It "outputs 1.2.0.48" {
+        Mock Get-GitTag { Write-Output '1.2' };
+        Mock Get-GitRevision { Write-Output 48 };
+        Get-GitVersionString | Should BeExactly '1.2.0.48';
+    }
+
+    It "outputs 1.0.3.97" {
+        Mock Get-GitTag { Write-Output 'v1.0.3' };
+        Mock Get-GitRevision { Write-Output 97 };
+        Get-GitVersionString | Should BeExactly '1.0.3.97';
+    }
 }
-
-<#
-
-Mock Get-Process { “filtered” } -ParameterFilter { $Name -eq "Explorer" }
- $gitCommand = 'git.exe rev-list HEAD --count';
-
-Get-GitTag {
-    <#
-        .SYNOPSIS
-            Returns the latest Git tag for the current branch of the Git
-            repository located in the current working directory.
-    #>
-    <#
-    [CmdletBinding()]
-    param ( )
-
-    process {
-        $gitCommand = 'git.exe describe --abbrev=0 --tags';
-        Write-Verbose ("Running '{0}'." -f $gitCommand);
-        Invoke-Expression -Command $gitCommand;
-    #>

@@ -14,7 +14,7 @@ function Get-GitTag {
     } #end process
 } #end function Get-GitTag
 
-function Get-GitAssemblyVersionString {
+function Get-GitVersionString {
     <#
         .SYNOPSIS
             Returns a Git Tag.Revision in a System.Version formatted string.
