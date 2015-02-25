@@ -31,13 +31,13 @@ function Get-GitVersionString {
     [CmdletBinding()]
     param ( )
     process {
-        $version = Convert-ToVersionArray -InputObject (Get-GitTag);
+        $version = ConvertToAssemblyVersionArray -InputObject (Get-GitTag);
         $version[3] = Get-GitRevision;
-        Write-Output (Convert-ToAssemblyVersionString -InputObject $version);
+        Write-Output (ConvertToAssemblyVersionString -InputObject $version);
     } #end process
 } #end Get-GitAssemblyVersionString
 
-function Convert-ToAssemblyVersionString {
+function ConvertToAssemblyVersionString {
     <#
         .SYNOPSIS
             Converts an array of integers to version string.
@@ -59,7 +59,7 @@ function Convert-ToAssemblyVersionString {
     } #end process
 } #end function Convert-ToAssemblyVersionString
 
-function Convert-ToVersionArray {
+function ConvertToAssemblyVersionArray {
     <#
         .SYNOPSIS
             Converts a version string to a four-part, integer array.

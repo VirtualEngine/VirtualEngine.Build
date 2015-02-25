@@ -20,7 +20,7 @@ Describe "Get-GitRevision" {
     }
 }
 
-Describe "Convert-ToVersionArray" {
+Describe "ConvertToAssemblyVersionArray" {
 
     It "converts 1.2 to 1,2,0,0" {
         [String]::Join(',', (Convert-ToVersionArray -InputObject '1.2')) | Should Be ([String]::Join(',', @(1,2,0,0)));
