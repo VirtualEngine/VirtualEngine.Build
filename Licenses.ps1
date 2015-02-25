@@ -1,4 +1,4 @@
-$Licenses = @{
+$licenses = @{
 
 MIT = @"
 The MIT License (MIT)
@@ -25,7 +25,7 @@ SOFTWARE.
 "@;
 
 Apache = @"
-Apache License
+                                 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
