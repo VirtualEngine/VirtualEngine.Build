@@ -164,7 +164,7 @@ function Get-ModuleFile {
             ## Check whether the file has been manually excluded
             $isExcluded = $false;
             foreach ($excludedFile in $Exclude) {
-                if ($moduleFile.FullName -like $excludedFile) {
+                if ($moduleFile.FullName -like $excludedFile -or $moduleFile.Name -like $excludedFile) {
                     $isExcluded = $true;
                     Write-Verbose ('File/directory "{0}" has been manually excluded.' -f $moduleFile);
                 }
