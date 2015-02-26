@@ -65,6 +65,54 @@ function Get-ModuleManifest {
     } #end process
 } #end function Get-ModuleManifest
 
+function Set-ModuleManifestProperty {
+    <#
+        .SYNOPSIS
+            Overwrites an existing Powershell module manifest property.
+        .NOTES
+            This cmdlet will not create any missing property.
+    #>
+    [CmdletBinding()]
+    param (
+        # Path to module manifest file
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)] [System.String] $Path,
+        # Module version number
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $Version,
+        # Module manifest root module
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $RootModule,
+        # Module GUID
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.Guid] $Guid,
+        # Module company name
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $CompanyName,
+        # Module author
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $Author,
+        # Copyright notice
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $Copyright,
+        # Module description
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $Description,
+        # Powershell version required
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $PowerShellVersion
+    )
+    begin {
+        if (Test-Path -Path $Path -PathType Container) {
+            Write-Error ('Path "{0}" is not a file.' -f $Path);
+            break;
+        }
+    } #end begin
+    process {
+        (Get-Content -Path $Path) | % {
+            if ($Version) { $PSItem = $PSItem -replace 'ModuleVersion\s*=\s*["|''].*["|'']', "ModuleVersion = '$Version'"; }
+            if ($RootModule) { $PSItem = $PSItem -replace 'RootModule\s*=\s*["|''].*["|'']', "RootModule = '$RootModule'"; }
+            if ($Guid) { $PSItem = $PSItem -replace 'GUID\s*=\s*["|''].*["|'']', "GUID = '$($Guid.ToString())'"; }
+            if ($Author) { $PSItem = $PSItem -replace 'Author\s*=\s*["|''].*["|'']', "Author = '$Author'"; }
+            if ($CompanyName) { $PSItem = $PSItem -replace 'CompanyName\s*=\s*["|''].*["|'']', "CompanyName = '$CompanyName'"; }
+            if ($Description) { $PSItem = $PSItem -replace 'Description\s*=\s*["|''].*["|'']', "RootModule = '$Description'"; }
+            if ($PowerShellVersion) { $PSItem = $PSItem -replace 'PowerShellVersion\s*=\s*["|''].*["|'']', "PowerShellVersion = '$PowerShellVersion'"; }
+            $PSItem;
+        } | Set-Content -Path $Path -Encoding UTF8;
+    } #end process
+} #end function Set-ModuleManifestProperty
+
 function Get-ModuleManifestProperty {
     <#
         .SYNOPSIS
