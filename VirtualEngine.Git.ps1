@@ -1,3 +1,45 @@
+function Test-Git {
+    <#
+        .SYNOPSIS
+            Checks that Git is installed.
+    #>
+    [CmdletBinding()]
+    param ( )
+    process {
+        try {
+            $gitVersion = Invoke-Expression -Command 'git.exe --version';
+            Write-Verbose ('Detected Git version "{0}".' -f $gitVersion);
+            return $true;
+        }
+        catch [System.Management.Automation.CommandNotFoundException] {
+            return $false;
+        }
+    } #end process
+} #end function Test-Git
+
+function Get-GitRemoteOrigin {
+    <#
+        .SYNOPSIS
+            Retrieves the remote origin of the current Git repository
+            located in the current working directory.
+    #>
+    [CmdletBinding()]
+    param ( )
+    process {
+        ## Check the Uri matches https://github.com/*
+        $gitCommand = 'git config --get remote.origin.url';
+        Write-Verbose ("Running '{0}'." -f $gitCommand);
+        [System.String] $origin = Invoke-Expression -Command $gitCommand; # Returns nothing if it's not a Git repo
+
+        if ([System.String]::IsNullOrEmpty($origin)) {
+            Write-Error ('No remote origin found or the current working directory does not contain a Git repository.');
+        }
+        else {
+            Write-Output $origin;
+        }
+    } #end process
+} #end function Get-GitRemoteOrigin
+
 function Get-GitTag {
     <#
         .SYNOPSIS

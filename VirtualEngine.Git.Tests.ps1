@@ -2,6 +2,12 @@
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
 . "$here\$sut"
 
+Describe "Test-Git" {
+    It "does something useful" {
+        $false | Should Be $true;
+    }
+}
+
 Describe "Get-GitTag" {
     Mock Invoke-Expression { Write-Output '1.0.0' } -ParameterFilter { $Command -eq 'git.exe describe --abbrev=0 --tags' }
 
