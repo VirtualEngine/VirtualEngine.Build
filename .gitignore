@@ -1,3 +1,4 @@
 Build/
 Release/
-Lib/
+Lib/pack.log
+Lib/error.log
