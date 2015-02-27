@@ -15,60 +15,71 @@ function New-NuGetNuspec {
          [ValidateNotNull()] [System.Management.Automation.PSModuleInfo] $InputObject,
          # Unique identifier for the Nuget package.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string] $Id,
+         [ValidateNotNullOrEmpty()] [Alias('Id')] [System.String] $Name,
          # Package version, in a format like 1.2.3.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName=$true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string] $Version,
+         [ValidateNotNullOrEmpty()] [System.String] $Version,
          # Human-friendly title of the package displayed. If none is specified, the Id is used instead.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string] $Title = $Id,
+         [ValidateNotNullOrEmpty()] [System.String] $Title = $Name,
          # A list of authors of the package code.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string[]] $Authors,
+         [ValidateNotNullOrEmpty()] [System.String[]] $Authors,
          # A list of the package creators.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [AllowNull()] [string] $Owners,
+         [AllowNull()] [System.String[]] $Owners,
          # A short description of the package.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [AllowNull()] [string] $Summary,
+         [AllowNull()] [System.String] $Summary,
          # A long description of the package.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string] $Description,
+         [ValidateNotNullOrEmpty()] [System.String] $Description,
          # A URL for the homepage of the package.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string] $ProjectUrl,
+         [ValidateNotNullOrEmpty()] [System.String] $ProjectUrl,
          # A URL for the image to use as the icon for the package. This should be 32x32-pixel .png file.
-         [Parameter(ValueFromPipelineByPropertyName = $true)]
-         [AllowNull()] [string] $IconUrl,
+         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
+         [AllowNull()] [System.String] $IconUrl,
          # A URL to the license that the package is under.
-         [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true)]
-         [ValidateNotNullOrEmpty()] [string] $LicenseUrl,
+         [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
+         [ValidateNotNullOrEmpty()] [System.String] $LicenseUrl,
          # Copyright details of the package.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [string] $Copyright,
+         [ValidateNotNullOrEmpty()] [System.String] $Copyright,
          # Specifies whether the client needs to ensure that the package license is accepted before package installation.
          [Parameter(ValueFromPipelineByPropertyName=$true)]
          [Switch] $RequireLicenseAcceptance,
          # A list of tags and keywords that describe the package
-         [Parameter(ValueFromPipelineByPropertyName = $true)]
-         [AllowNull()] [string[]] $Tags,
+         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
+         [AllowNull()] [System.String[]] $Tags,
          # A list of dependencies for the package.
-         [Parameter(ValueFromPipelineByPropertyName = $true)]
-         [AllowNull()] [string[]] $Dependencies,
-         # Add date stamp to version
-         [Parameter(ValueFromPipelineByPropertyName = $true)]
-         [Switch] $DateStampVersion
+         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
+         [AllowNull()] [System.String[]] $Dependencies
      )
+     begin {
+        $Name = $Name.ToLower().Replace(' ','');
+     } #end begin
      process {
         if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
-            $Id = $InputObject.Name.Replace('.','-');
+            if (-not ($InputObject.ProjectUri)) {
+                Write-Error ('Project Uri not specified in the module manifest.');
+                break;
+            }
+            if (-not ($InputObject.LicenseUri)) {
+                Write-Error ('License Uri not specified in the module manifest.');
+                break;
+            }
+            $Id = $InputObject.Name;
             $Version = $InputObject.Version.ToString();
             $Title = $Id;
             $Authors = @($InputObject.Author);
-            $Owners = $InputObject.CompanyName;
+            $Owners = @($InputObject.CompanyName);
             $Description = $InputObject.Description;
-            $ProjectUrl = $InputObject.HelpInfoUri;
+            $ProjectUrl = $InputObject.ProjectUri.AbsoluteUri;
             $Copyright = $InputObject.Copyright;
+            $LicenseUrl = $InputObject.LicenseUri.AbsoluteUri;
+            $Tags = $InputObject.PrivateData.PSData.Tags;
+            $IconUrl = $InputObject.IconUri.AbsoluteUri;
         }
 
         ## Create .nuspec
@@ -83,12 +94,7 @@ function New-NuGetNuspec {
         $titleNode = $metadata.AppendChild($nuspec.CreateElement('title'));
         [ref] $null = $titleNode.AppendChild($nuspec.CreateTextNode($Title));
         $versionNode = $metadata.AppendChild($nuspec.CreateElement('version'));
-        if ($DateStampVersion) {
-            [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode("$Version.$((Get-Date).ToString('yyyyMMdd'))"));
-        }
-        else {
-            [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode($Version));
-        }
+        [ref] $null = $versionNode.AppendChild($nuspec.CreateTextNode($Version));
         $authorsNode = $metadata.AppendChild($nuspec.CreateElement('authors'));
         [ref] $null = $authorsNode.AppendChild($nuspec.CreateTextNode([string]::Join(',', $Authors)));
         $ownersNode = $metadata.AppendChild($nuspec.CreateElement('owners'));
@@ -114,4 +120,3 @@ function New-NuGetNuspec {
         Write-Output $nuspec;
      } #end process
 } #end function New-NuGetNuspec
- 
