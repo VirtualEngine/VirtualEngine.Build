@@ -9,11 +9,13 @@
 
 ## Download Nuget.exe (if not present)
 $moduleRoot = Split-Path -Parent $MyInvocation.MyCommand.Path;
-if (-not (Test-Path -Path "$moduleRoot\Lib\Nuget.exe")) {
-    if (-not (Test-Path -Path "$moduleRoot\Lib" -PathType Container)) {
-        [ref] $null = New-Item -Path "$moduleRoot\Lib" -ItemType Directory -Force;
+Set-Variable -Name virtualEngineBuildNugetPath -Value (Join-Path -Path $moduleRoot -ChildPath 'Lib\Nuget.exe') -Scope Script;
+if (-not (Test-Path -Path $virtualEngineBuildNugetPath)) {
+    $virtualEngineBuildNugetParentPath = Split-Path -Path $virtualEngineBuildNugetPath -Parent;
+    if (-not (Test-Path -Path $virtualEngineBuildNugetParentPath -PathType Container)) {
+        [ref] $null = New-Item -Path $virtualEngineBuildNugetParentPath -ItemType Directory -Force;
     }
-    Invoke-WebRequest -Uri 'http://nuget.org/nuget.exe' -OutFile "$moduleRoot\Lib\Nuget.exe";
+    Invoke-WebRequest -Uri 'http://nuget.org/nuget.exe' -OutFile $virtualEngineBuildNugetPath;
 }
 
 ## Export public functions
