@@ -3,8 +3,11 @@ $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
 . "$here\$sut"
 
 Describe "Test-Git" {
-    It "does something useful" {
-        $false | Should Be $true;
+    Mock Invoke-Expression { Write-Output $true; } -ParameterFilter { $Command -eq 'git.exe --version' }
+
+    It "calls 'git.exe --version" {
+        Test-Git | Should Be $true;
+        Assert-MockCalled -CommandName Invoke-Expression -ParameterFilter { $Command -eq 'git.exe --version' }
     }
 }
 
