@@ -1,3 +1,37 @@
+function Invoke-NuGetPack {
+    <#
+        .SYNOPSIS
+            Packages the specified NuGet .nuspec package.
+        .NOTES
+            https://github.com/chocolatey/chocolatey/blob/master/src/functions/Chocolatey-Pack.ps1
+    #>
+    [CmdletBinding()]
+    param (
+        # File path to the NuGet .nuspec source file to pack.
+        [Parameter(Mandatory = $true)] [System.String] $Path,
+        # Output directory path for the NuGet package.
+        [Parameter(Mandatory = $true)] [System.String] $DestinationPath
+    )
+    process {
+        $nugetDirectoryPath = Split-Path $virtualEngineBuildNugetPath -Parent;
+        $nuspecFilename = Get-Item -Path $Path;
+        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $Path, $DestinationPath;
+        $logFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'pack.log';
+        $errorLogFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'error.log';
+
+        Write-Verbose ('Calling ''{0} {1}''.' -f $virtualEngineBuildNugetPath, $packageArgs);
+        $process = Start-Process $virtualEngineBuildNugetPath -ArgumentList $packageArgs -NoNewWindow -Wait -RedirectStandardOutput $logFile -RedirectStandardError $errorLogFile -PassThru;
+        # this is here for specific cases in Posh v3 where -Wait is not honored
+        try { if (!($process.HasExited)) { Wait-Process -Id $process.Id } } catch { }
+
+        Get-Content -Path $logFile -Encoding Ascii;
+        $errors = Get-Content $errorLogFile
+        if ($process.ExitCode -ne 0) {
+            Write-Error $errors;
+        }
+    } #end process
+} #end function Invoke-NuGetPack
+
 function New-NuGetNuspec {
     <#
         .SYNOPSIS
@@ -19,7 +53,7 @@ function New-NuGetNuspec {
          # Package version, in a format like 1.2.3.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName=$true, ParameterSetName = 'Manual')]
          [ValidateNotNullOrEmpty()] [System.String] $Version,
-         # Human-friendly title of the package displayed. If none is specified, the Id is used instead.
+         # Human-friendly title of the package displayed. If none is specified, the Name is used instead.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [ValidateNotNullOrEmpty()] [System.String] $Title = $Name,
          # A list of authors of the package code.
@@ -56,9 +90,6 @@ function New-NuGetNuspec {
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [AllowNull()] [System.String[]] $Dependencies
      )
-     begin {
-        $Name = $Name.ToLower().Replace(' ','');
-     } #end begin
      process {
         if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
             if (-not ($InputObject.ProjectUri)) {
@@ -69,9 +100,9 @@ function New-NuGetNuspec {
                 Write-Error ('License Uri not specified in the module manifest.');
                 break;
             }
-            $Id = $InputObject.Name;
+            $Name = $InputObject.Name;
             $Version = $InputObject.Version.ToString();
-            $Title = $Id;
+            $Title = $InputObject.Name;
             $Authors = @($InputObject.Author);
             $Owners = @($InputObject.CompanyName);
             $Description = $InputObject.Description;
@@ -81,6 +112,8 @@ function New-NuGetNuspec {
             $Tags = $InputObject.PrivateData.PSData.Tags;
             $IconUrl = $InputObject.IconUri.AbsoluteUri;
         }
+        ## Ensure Id is lowercase and contains no spaces
+        $Name = $Name.ToLower().Replace(' ','');
 
         ## Create .nuspec
         [System.Xml.XmlDocument] $nuspec = New-Object System.Xml.XmlDocument;
@@ -90,7 +123,7 @@ function New-NuGetNuspec {
         $package.SetAttribute('xmlns:xsd', 'http://www.w3.org/2001/XMLSchema');
         $metadata = $package.AppendChild($nuspec.CreateElement('metadata'));
         $idNode = $metadata.AppendChild($nuspec.CreateElement('id'));
-        [ref] $null = $idNode.AppendChild($nuspec.CreateTextNode($Id));
+        [ref] $null = $idNode.AppendChild($nuspec.CreateTextNode($Name));
         $titleNode = $metadata.AppendChild($nuspec.CreateElement('title'));
         [ref] $null = $titleNode.AppendChild($nuspec.CreateTextNode($Title));
         $versionNode = $metadata.AppendChild($nuspec.CreateElement('version'));
