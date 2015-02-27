@@ -12,16 +12,16 @@
     CmdletsToExport = '*-*';
     VariablesToExport = '*';
     AliasesToExport = '*';
-    FileList = @('VirtualEngine.Build.psd1','VirtualEngine.Build.psm1','VirtualEngine.Module.ps1','VirtualEngine.Nuget.ps1','VirtualEngine.Git.ps1');
+    FileList = '';
     PrivateData = @{
         ## PSData is used by PowershellGet
         PSData = @{
             Tags = @('VirtualEngine','Build');
             # A URL to the license for this module.
-            # LicenseUri = ''
+            LicenseUri = 'https://github.com/VirtualEngine/Build/blob/master/LICENSE';
 
             # A URL to the main website for this project.
-            # ProjectUri = ''
+            ProjectUri = 'https://github.com/VirtualEngine/Build'
 
             # A URL to an icon representing this module.
             # IconUri = ''
