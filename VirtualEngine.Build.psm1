@@ -6,6 +6,7 @@
 . (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Git.ps1);
 . (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Github.ps1);
 . (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.VisualStudio.ps1);
+. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Chocolatey.ps1);
 
 ## Download Nuget.exe (if not present)
 $moduleRoot = Split-Path -Parent $MyInvocation.MyCommand.Path;
