@@ -1,7 +1,7 @@
 function Test-Git {
     <#
         .SYNOPSIS
-            Checks that Git is installed.
+            Checks that Git is installed and located on the system path.
     #>
     [CmdletBinding()]
     param ( )
