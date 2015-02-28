@@ -67,7 +67,7 @@ function New-ChocolateyInstallModule {
         [Parameter(Mandatory = $true)] [System.String] $Uri
     )
     begin {
-        if (-not (TestChocolateInstallPath -Path $Path)) { break; }
+        if (-not (TestChocolateyInstallPath -Path $Path)) { break; }
     }
     process {
         # Copy files to the destination path, replacing tokens on the way.
@@ -135,7 +135,7 @@ function New-ChocolateyInstallPackage {
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')] [System.String] $UninstallPath
     )
     begin {
-        if (-not (TestChocolateInstallPath -Path $Path)) { break; }
+        if (-not (TestChocolateyInstallPath -Path $Path)) { break; }
         if ($PSCmdlet.ParameterSetName -eq 'EXE') { $fileType = 'EXE'; } else { $fileType = 'MSI'; }
         Write-Verbose ('Using parameter set name "{0}".' -f $PSCmdlet.ParameterSetName);
     }
