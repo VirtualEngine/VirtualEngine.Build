@@ -1,7 +1,7 @@
 function Invoke-NuGetPack {
     <#
         .SYNOPSIS
-            Packages the specified NuGet .nuspec package.
+            Packs the specified NuGet .nuspec package.
         .NOTES
             https://github.com/chocolatey/chocolatey/blob/master/src/functions/Chocolatey-Pack.ps1
     #>
@@ -12,10 +12,17 @@ function Invoke-NuGetPack {
         # Output directory path for the NuGet package.
         [Parameter(Mandatory = $true)] [System.String] $DestinationPath
     )
+    begin {
+        if (Test-Path -Path $Path -PathType Container) {
+            Write-Error ('Path "{0}" is an invalid .nuspec file.' -f $Path);
+            break;
+        }
+        $Path = Resolve-Path -Path $Path;
+    }
     process {
         $nugetDirectoryPath = Split-Path $virtualEngineBuildNugetPath -Parent;
         $nuspecFilename = Get-Item -Path $Path;
-        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $Path.Fullname, $DestinationPath;
+        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $Path, $DestinationPath;
         $logFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'pack.log';
         $errorLogFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'error.log';
 
