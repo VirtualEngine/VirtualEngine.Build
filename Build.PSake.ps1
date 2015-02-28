@@ -70,6 +70,7 @@ Task Stage -Depends Default, Sign {
     ## Create the Chocolatey package
     $nuspecFilename = '{0}.nuspec' -f $manifest.Name;
     $nuspecPath = Join-Path -Path $chocolateyBuildPath -ChildPath $nuspecFilename;
+    Write-Host (' - 3: {0}' -f $manifest.Version) -ForegroundColor Cyan;
     (New-NuGetNuspec -InputObject $manifest).Save($nuspecPath);
     New-ChocolateyInstallModule -Path "$chocolateyBuildPath\tools" -PackageName $manifest.Name -Uri $manifest.PrivateData.PSData.ProjectUri;
     Invoke-NuGetPack -Path $nuspecPath -DestinationPath $releasePath;
@@ -131,7 +132,9 @@ Task Version {
     Write-Host (' Versioning module manifest "{0}".' -f $buildManifest.Path) -ForegroundColor Yellow;
     Set-ModuleManifestProperty -Path $manifest.Path -Version $version -CompanyName $company -Author $author;
     ## Reload module manifest
+    Write-Host (' - 1: {0}' -f $manifest.Version) -ForegroundColor Cyan;
     $manifest = Get-ModuleManifest;
+    Write-Host (' - 2: {0}' -f $manifest.Version) -ForegroundColor Cyan;
 }
 
 Task Sign {
