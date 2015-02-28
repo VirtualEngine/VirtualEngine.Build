@@ -1,10 +1,10 @@
 ﻿@{
 
     RootModule = 'VirtualEngine.Build.psm1';
-    ModuleVersion = '0.0.0.0';
+    ModuleVersion = '0.2.0.42';
     GUID = '55b9490e-2766-45f8-bfc7-4e919943bfaa';
     Author = 'Iain Brighton';
-    CompanyName = 'Virtual Engine';
+    CompanyName = 'Virtual Engine Limited';
     Copyright = '(c) Virtual Engine Limited. All rights reserved.';
     Description = 'The VirtualEngine.Build module contains cmdlets that are used to bundle Powershell module releases and Visual Studio binaries.';
     PowerShellVersion = '3.0';

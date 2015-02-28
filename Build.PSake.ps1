@@ -54,9 +54,9 @@ Properties {
     $author = 'Iain Brighton';
 }
 
-Task Default -Depends Setup, Clean, Build, Test;
+Task Default -Depends Setup, Clean, Version, Build, Test;
 
-Task Stage -Depends Default, Version, Sign {
+Task Stage -Depends Default, Sign {
     ## Creates the release files in the $releaseDir
     $releaseName = '{0}-v{1}' -f $manifest.Name, $version;
 
@@ -67,6 +67,12 @@ Task Stage -Depends Default, Version, Sign {
     $zipSourcePath = Split-Path -Path $buildPath -Parent;
     New-ZipArchive -Path $zipSourcePath -DestinationPath $zipPath;
 
+    ## Create the Chocolatey package
+    $nuspecFilename = '{0}.nuspec' -f $manifest.Name;
+    $nuspecPath = Join-Path -Path $chocolateyBuildPath -ChildPath $nuspecFilename;
+    (New-NuGetNuspec -InputObject $manifest).Save($nuspecPath);
+    New-ChocolateyInstallModule -Path "$chocolateyBuildPath\tools" -PackageName $manifest.Name -Uri $manifest.PrivateData.PSData.ProjectUri;
+    Invoke-NuGetPack -Path $nuspecPath -DestinationPath $releasePath;
 }
 
 Task Publish -Depends Stage {
@@ -77,6 +83,7 @@ Task Setup {
     # Properties are not available in the script scope.
     Set-Variable manifest -Value (Get-ModuleManifest) -Scope Script;
     Set-Variable buildPath -Value (Join-Path -Path $psake.build_script_dir -ChildPath "$buildDir\$($manifest.Name)") -Scope Script;
+    Set-Variable chocolateyBuildPath -Value (Join-Path -Path $psake.build_script_dir -ChildPath "$buildDir\Chocolatey") -Scope Script;
     Set-Variable releasePath -Value (Join-Path -Path $psake.build_script_dir -ChildPath $releaseDir) -Scope Script;
 
     Set-Variable version -Value (Get-GitVersionString) -Scope Script;
@@ -102,7 +109,11 @@ Task Build {
     if (!(Test-Path -Path $releasePath)) {
         Write-Host (' Creating release directory "{0}".' -f $releasePath) -ForegroundColor Yellow;
         [Ref] $null = New-Item $releasePath -ItemType Directory -Force -ErrorAction Stop;
-    }
+    }  
+    ## Create the Chocolatey folder
+    Write-Host (' Creating Chocolatey directory "{0}".' -f $chocolateyBuildPath) -ForegroundColor Yellow;
+    [Ref] $null = New-Item $chocolateyBuildPath -ItemType Directory -Force -ErrorAction Stop;
+    [Ref] $null = New-Item "$chocolateyBuildPath\tools" -ItemType Directory -Force -ErrorAction Stop;
 
     ## Copy release files
     Write-Host (' Copying release files to build directory "{0}".' -f $buildPath) -ForegroundColor Yellow;
@@ -117,9 +128,10 @@ Task Build {
 
 Task Version {
     ## Version module manifest prior to build
-    $buildManifest = Get-ModuleManifest -Path $buildPath;
     Write-Host (' Versioning module manifest "{0}".' -f $buildManifest.Path) -ForegroundColor Yellow;
-    Set-ModuleManifestProperty -Path $buildManifest.Path -Version $version -CompanyName $company -Author $author;
+    Set-ModuleManifestProperty -Path $manifest.Path -Version $version -CompanyName $company -Author $author;
+    ## Reload module manifest
+    $manifest = Get-ModuleManifest;
 }
 
 Task Sign {
