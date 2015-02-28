@@ -86,7 +86,7 @@ function New-NuGetNuspec {
          [ValidateNotNullOrEmpty()] [System.String] $LicenseUrl,
          # Copyright details of the package.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [System.String] $Copyright = "(c) Copyright $([System.String]::Join(',', $Owners))",
+         [ValidateNotNullOrEmpty()] [System.String] $Copyright,
          # Specifies whether the client needs to ensure that the package license is accepted before package installation.
          [Parameter(ValueFromPipelineByPropertyName=$true)]
          [Switch] $RequireLicenseAcceptance,
@@ -97,6 +97,11 @@ function New-NuGetNuspec {
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [AllowNull()] [System.String[]] $Dependencies
      )
+     begin {
+        if (-not ($Copyright) -and $Owners) {
+            $Copyright = '(c) Copyright {0}' -f [System.String]::Join(',', $Owners);
+        }
+     }
      process {
         if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
             if (-not ($InputObject.ProjectUri)) {
