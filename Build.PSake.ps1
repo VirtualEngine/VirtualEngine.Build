@@ -133,7 +133,7 @@ Task Version {
     Set-ModuleManifestProperty -Path $manifest.Path -Version $version -CompanyName $company -Author $author;
     ## Reload module manifest
     Write-Host (' - 1: {0}' -f $manifest.Version) -ForegroundColor Cyan;
-    $manifest = Get-ModuleManifest;
+    Set-Variable manifest -Value (Get-ModuleManifest) -Scope Script -Force;
     Write-Host (' - 2: {0}' -f $manifest.Version) -ForegroundColor Cyan;
 }
 
