@@ -15,7 +15,7 @@ function Invoke-NuGetPack {
     process {
         $nugetDirectoryPath = Split-Path $virtualEngineBuildNugetPath -Parent;
         $nuspecFilename = Get-Item -Path $Path;
-        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $Path, $DestinationPath;
+        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $Path.Fullname, $DestinationPath;
         $logFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'pack.log';
         $errorLogFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'error.log';
 
@@ -78,8 +78,8 @@ function New-NuGetNuspec {
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [ValidateNotNullOrEmpty()] [System.String] $LicenseUrl,
          # Copyright details of the package.
-         [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [System.String] $Copyright,
+         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
+         [ValidateNotNullOrEmpty()] [System.String] $Copyright = "(c) Copyright $([System.String]::Join(',', $Owners))",
          # Specifies whether the client needs to ensure that the package license is accepted before package installation.
          [Parameter(ValueFromPipelineByPropertyName=$true)]
          [Switch] $RequireLicenseAcceptance,
