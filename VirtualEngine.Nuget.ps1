@@ -155,12 +155,12 @@ function New-NuGetNuspec {
      }
      process {
         if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
-            if (-not ($InputObject.ProjectUri)) {
-                Write-Error ('Project Uri not specified in the module manifest.');
+            if (-not ($InputObject.PrivateData.PSData.ProjectUri)) {
+                Write-Error ('PrivateData.PSData.ProjectUri is not defined in the module manifest.');
                 break;
             }
-            if (-not ($InputObject.LicenseUri)) {
-                Write-Error ('License Uri not specified in the module manifest.');
+            if (-not ($InputObject.PrivateData.PSData.LicenseUri)) {
+                Write-Error ('PrivateData.PSData.LicenseUri is not defined in the module manifest.');
                 break;
             }
             $Name = $InputObject.Name;
@@ -169,9 +169,9 @@ function New-NuGetNuspec {
             $Authors = @($InputObject.Author);
             $Owners = @($InputObject.CompanyName);
             $Description = $InputObject.Description;
-            $ProjectUrl = $InputObject.ProjectUri.AbsoluteUri;
+            $ProjectUrl = $InputObject.PrivateData.PSData.ProjectUri;
             $Copyright = $InputObject.Copyright;
-            $LicenseUrl = $InputObject.LicenseUri.AbsoluteUri;
+            $LicenseUrl = $InputObject.PrivateData.PSData.LicenseUri;
             $Tags = $InputObject.PrivateData.PSData.Tags;
             $IconUrl = $InputObject.IconUri.AbsoluteUri;
         }
