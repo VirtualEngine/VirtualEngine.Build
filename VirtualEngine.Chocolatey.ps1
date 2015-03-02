@@ -15,6 +15,8 @@ function TestChocolateyInstallPath {
     }
 }
 
+#region Templates
+
 $chocolateyModuleZipInstall = @'
 ## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Zip-based Powershell module installations
 try {
@@ -45,10 +47,85 @@ catch {
 }
 '@;
 
-function New-ChocolateyInstallModule {
+$chocolateyInstall = @'
+## Template VirtualEngine.Build ChocolateyInstall.ps1 file for EXE/MSI installations
+Install-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -Url '{downloaduri}';
+'@;
+
+$chocolateyUninstallExe = @'
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE/MSI installations
+Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -File "{uninstallfile}"; 
+'@;
+
+$chocolateyUninstallMsi = @'
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE/MSI installations
+Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}'; 
+'@;
+
+$chocolateyPackageZipInstall = @'
+## Template VirtualEngine.Build ChocolateyInstall.ps1 file for zippped EXE/MSI installations
+$packageToolsPath = Split-Path -parent $MyInvocation.MyCommand.Definition;
+Install-ChocolateyZipPackage -PackageName '{packagename}' -Url '{downloaduri}' -UnzipLocation $packageToolsPath;
+$packageFilePath = Join-Path $packageToolsPath -ChildPath '{file}';
+Install-ChocolateyInstallPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -File $packageFilePath;
+'@;
+
+$chocolateyPortableZipInstall = @'
+## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Zip-based Powershell module installations
+try {
+    $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f [System.Environment]::GetFolderPath('Personal');
+    if ($env:chocolateyPackageParameters -like '*AllUsers*') {
+        $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f $env:ProgramFiles;
+    }
+    Write-Host ('Installing to "{0}".' -f $moduleInstallPath);
+    Install-ChocolateyZipPackage '{packagename}' '{downloaduri}' "$moduleInstallPath";
+}
+catch {
+    throw $_.Exception;
+};
+'@;
+
+$chocolateyPortableZipUninstall = @'
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Zip-based Powershell module installations
+try {
+    $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f [System.Environment]::GetFolderPath('Personal');
+    if ($env:PackageParameters -like '*AllUsers') {
+        $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f $env:ProgramFiles;
+    }
+    Write-Host ('Removing "{0}\{1}".' -f $moduleInstallPath, '{packagename}');
+    Remove-Item -Path "$moduleInstallPath\{packagename}" -Recurse -Force;
+}
+catch {
+    throw $_.Exception;
+}
+'@;
+
+$chocolateyScriptInstall = @'
+## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Powershell script deployments
+try {
+    $scriptInstallPath = '{0}\WindowsPowershell' -f [System.Environment]::GetFolderPath('Personal');
+    if ($env:chocolateyPackageParameters -like '*AllUsers*') {
+        $scriptInstallPath = '{0}\WindowsPowershell' -f $env:ProgramFiles;
+    }
+    $packagePath = Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Definition -Parent) -Parent;
+    Write-Host ('Deploying script file(s) to ''{0}''.' -f $scriptInstallPath);
+    Get-ChildItem -Path $packagePath -Exclude '{exclude}' | Copy-Item -Destination $scriptInstallPath;
+}
+catch {
+    throw $_.Exception;
+}
+'@;
+$chocolateyScriptUninstall = @'
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Powershell script deployments
+Write-Host 'Uninstallation of Powershell scripts is not supported - in case of script modifications.';
+'@;
+
+#endregion Templates
+
+function New-ChocolateyInstallZipModule {
     <#
         .SYNOPSIS
-            Creates a new ChocolateyInstall and ChocolateyUninstall file for Powershell module installation.
+            Creates a new ChocolateyInstall and ChocolateyUninstall file for zipped Powershell module installation.
         .DESCRIPTION
             This cmdlet copies ChocolateyInstall.ps1 and ChocolateyUninstall.ps1 files to the destination
             path specified for a zipped Powershell module installation.
@@ -78,20 +155,70 @@ function New-ChocolateyInstallModule {
     } #end process
 } #end function New-ChocolateyInstallModule
 
-$chocolateyInstall = @'
-## Template VirtualEngine.Build ChocolateyInstall.ps1 file for EXE/MSI installations
-Install-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -Url '{downloaduri}';
-'@;
+function New-ChocolateyInstallZipPackage {
+    <#
+        .SYNOPSIS
+            Creates a new ChocolateyInstall and ChocolateyUninstall file a zipped MSI or EXE installation.
+        .DESCRIPTION
+            This cmdlet copies ChocolateyInstall.ps1 and ChocolateyUninstall.ps1 files to the destination
+            path specified for MSI or unattended executable installation.
+        .NOTES
+            For MSI deployments, the uninstallation parameters need to be specified that prepent the
+            /X parameter, for example '{ba79f56e-66e1-4ff6-bef5-98d22869dbd3} /qn /norestart'.
 
-$chocolateyUninstallExe = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE/MSI installations
-Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -File "{uninstallfile}"; 
-'@;
-
-$chocolateyUninstallMsi = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE/MSI installations
-Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}'; 
-'@;
+            For EXE deployments, the uninstallation file path must point to a locally installed file
+            that performs the unattended installation.
+    #>
+    [CmdletBinding()]
+    param (
+        ## Destination directory for the ChocolateyInstall.ps1 and ChocolateyUninstall.ps1 files.
+        [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
+        [System.String] $Path,
+        ## Chocolatey package name, i.e. VirtualEngine.Build
+        [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
+        [System.String] $PackageName,
+        ## Package URL download link.
+        [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
+        [System.String] $Uri,
+        ## Zipped file within the download link file.
+        [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
+        [System.String] $File,
+        ## Installer silent installation arguments.
+        [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
+        [System.String] $Arguments,
+        ## Installer silent uninstallation arguments.
+        [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
+        [System.String] $UninstallArguments,
+        ## Installer is an EXE file.
+        [Parameter(ParameterSetName = 'EXE')] [Switch] $EXE,
+        ## File path to the native EXE uninstaller.
+        [Parameter(Mandatory = $true, ParameterSetName = 'EXE')] [System.String] $UninstallPath
+    )
+    begin {
+        if (-not (TestChocolateyInstallPath -Path $Path)) { break; }
+        if ($PSCmdlet.ParameterSetName -eq 'EXE') { $fileType = 'EXE'; } else { $fileType = 'MSI'; }
+        Write-Verbose ('Using parameter set name "{0}".' -f $PSCmdlet.ParameterSetName);
+    }
+    process {
+        # Copy files to the destination path, replacing tokens on the way.
+        $chocolateyPackageZipInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments -replace  '\{file\}', $File |
+            Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
+        if ($PSCmdlet.ParameterSetName -eq 'EXE') {
+            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
+                Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
+        }
+        else {
+            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments |
+                Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
+        }
+     } #end process
+} #end function New-ChocolateyInstallZipPackage
 
 function New-ChocolateyInstallPackage {
     <#
@@ -154,37 +281,7 @@ function New-ChocolateyInstallPackage {
      } #end process
 } #end function New-ChocolateyInstallPackage
 
-$chocolateyPortableInstall = @'
-## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Zip-based Powershell module installations
-try {
-    $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f [System.Environment]::GetFolderPath('Personal');
-    if ($env:chocolateyPackageParameters -like '*AllUsers*') {
-        $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f $env:ProgramFiles;
-    }
-    Write-Host ('Installing to "{0}".' -f $moduleInstallPath);
-    Install-ChocolateyZipPackage '{packagename}' '{downloaduri}' "$moduleInstallPath";
-}
-catch {
-    throw $_.Exception;
-};
-'@;
-
-$chocolateyPortableUninstall = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Zip-based Powershell module installations
-try {
-    $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f [System.Environment]::GetFolderPath('Personal');
-    if ($env:PackageParameters -like '*AllUsers') {
-        $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f $env:ProgramFiles;
-    }
-    Write-Host ('Removing "{0}\{1}".' -f $moduleInstallPath, '{packagename}');
-    Remove-Item -Path "$moduleInstallPath\{packagename}" -Recurse -Force;
-}
-catch {
-    throw $_.Exception;
-}
-'@;
-
-function New-ChocolateyInstallPortable {
+function New-ChocolateyInstallZipPortable {
     <#
         .SYNOPSIS
             Creates a new ChocolateyInstall and ChocolateyUninstall file for portable installation.
@@ -211,32 +308,12 @@ function New-ChocolateyInstallPortable {
     }
     process {
         # Copy files to the destination path, replacing tokens on the way.
-        $chocolateyPortableInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri |
+        $chocolateyPortableZipInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
-        $chocolateyPortableUninstall -replace '\{packagename\}' |
+        $chocolateyPortableZipUninstall -replace '\{packagename\}' |
             Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
     } #end process
 } #end function New-ChocolateyInstallPortable
-
-$chocolateyScriptInstall = @'
-## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Powershell script deployments
-try {
-    $scriptInstallPath = '{0}\WindowsPowershell' -f [System.Environment]::GetFolderPath('Personal');
-    if ($env:chocolateyPackageParameters -like '*AllUsers*') {
-        $scriptInstallPath = '{0}\WindowsPowershell' -f $env:ProgramFiles;
-    }
-    $packagePath = Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Definition -Parent) -Parent;
-    Write-Host ('Deploying script file(s) to ''{0}''.' -f $scriptInstallPath);
-    Get-ChildItem -Path $packagePath -Exclude '{exclude}' | Copy-Item -Destination $scriptInstallPath;
-}
-catch {
-    throw $_.Exception;
-}
-'@;
-$chocolateyScriptUninstall = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Powershell script deployments
-Write-Host 'Uninstallation of Powershell scripts is not supported - in case of script modifications.';
-'@;
 
 function New-ChocolateyInstallScript {
     <#
@@ -273,4 +350,4 @@ function New-ChocolateyInstallScript {
         $chocolateyScriptUninstall |
             Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
     } #end process
-} #end functoin New-ChocolateyInstallScript
+} #end function New-ChocolateyInstallScript
