@@ -1,3 +1,50 @@
+function Invoke-NuGetPush {
+    <#
+        .SYNOPSIS
+            Pushes the specified NuGet .nupkg package.
+        .NOTES
+            https://github.com/chocolatey/chocolatey/blob/master/src/functions/Chocolatey-Push.ps1
+    #>
+    [CmdletBinding()]
+    [OutputType([System.String])]
+    param (
+        # File path to the NuGet .nupkg source file to pack.
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)] [System.String] $Path,
+        # Nuget Api Key.
+        [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true)] [System.String] $ApiKey,
+        # Nuget source feed. Defaults to the Chocolatey public feed.
+        [Parameter(ValueFromPipelineByPropertyName = $true)] [System.String] $Source = 'https://chocolatey.org/'
+    )
+    begin {
+        if (Test-Path -Path $Path -PathType Container) {
+            Write-Error ('Path "{0}" is a directory. Please specify a valid .nupkg file.' -f $Path);
+            break;
+        }
+        $nupkg = Get-Item -Path $Path;
+        if ($nupkg.Extension -ne '.nupkg') {
+            Write-Error ('Path "{0}" is not a .nupkg file. Please specify a valid .nupkg file.' -f $Path);
+            break;
+        }
+    } #end begin
+    process {
+        $nugetDirectoryPath = Split-Path $virtualEngineBuildNugetPath -Parent;
+        $packageArgs = 'push "{0}" -ApiKey {1} -Source {2} -NonInteractive' -f $nupkg.Fullname, $ApiKey, $Source;
+        $logFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'push.log';
+        $errorLogFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'error.log';
+
+        Write-Verbose ('Calling ''{0} {1}''.' -f $virtualEngineBuildNugetPath, $packageArgs);
+        $process = Start-Process $virtualEngineBuildNugetPath -ArgumentList $packageArgs -NoNewWindow -Wait -RedirectStandardOutput $logFile -RedirectStandardError $errorLogFile -PassThru;
+        # this is here for specific cases in Posh v3 where -Wait is not honored
+        try { if (!($process.HasExited)) { Wait-Process -Id $process.Id } } catch { }
+
+        Get-Content -Path $logFile -Encoding Ascii;
+        $errors = Get-Content $errorLogFile
+        if ($process.ExitCode -ne 0) {
+            Write-Error $errors;
+        }
+    } #end process
+} #end function Invoke-NuGetPack
+
 function Invoke-NuGetPack {
     <#
         .SYNOPSIS
@@ -6,23 +53,27 @@ function Invoke-NuGetPack {
             https://github.com/chocolatey/chocolatey/blob/master/src/functions/Chocolatey-Pack.ps1
     #>
     [CmdletBinding()]
+    [OutputType([System.String])]
     param (
         # File path to the NuGet .nuspec source file to pack.
-        [Parameter(Mandatory = $true)] [System.String] $Path,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)] [System.String] $Path,
         # Output directory path for the NuGet package.
-        [Parameter(Mandatory = $true)] [System.String] $DestinationPath
+        [Parameter(Mandatory = $true,ValueFromPipelineByPropertyName = $true)] [System.String] $DestinationPath
     )
     begin {
         if (Test-Path -Path $Path -PathType Container) {
-            Write-Error ('Path "{0}" is an invalid .nuspec file.' -f $Path);
+            Write-Error ('Path "{0}" is a directory. Please specify a valid .nuspec file.' -f $Path);
             break;
         }
-        $Path = Resolve-Path -Path $Path;
+        $nuspec = Get-Item -Path $Path;
+        if ($nuspec.Extension -ne '.nuspec') {
+            Write-Error ('Path "{0}" is not a .nuspec file. Please specify a valid .nuspec file.' -f $Path);
+            break;
+        }
     }
     process {
         $nugetDirectoryPath = Split-Path $virtualEngineBuildNugetPath -Parent;
-        $nuspecFilename = Get-Item -Path $Path;
-        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $Path, $DestinationPath;
+        $packageArgs = 'pack "{0}" -NoPackageAnalysis -NonInteractive -OutputDirectory "{1}"' -f $nuspec.Fullname, $DestinationPath;
         $logFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'pack.log';
         $errorLogFile = Join-Path -Path $nugetDirectoryPath -ChildPath 'error.log';
 
