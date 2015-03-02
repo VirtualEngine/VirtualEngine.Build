@@ -79,14 +79,17 @@ Install-ChocolateyInstallPackage -PackageName '{packagename}' -FileType '{instal
 '@;
 
 $chocolateyPortableZipInstall = @'
-## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Zip-based Powershell module installations
+## Template VirtualEngine.Build ChocolateyInstall.ps1 file for Zip-based portable installations
 try {
-    $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f [System.Environment]::GetFolderPath('Personal');
-    if ($env:chocolateyPackageParameters -like '*AllUsers*') {
-        $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f $env:ProgramFiles;
+    $packageToolsPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent;
+    $packageRootPath = Split-Path -Path $packageToolsPath -Parent;
+    $packageContentPath = Join-Path -Path $packageRootPath -ChildPath 'Content';
+    [Ref] $null = New-Item -Path $packageContentPath -ItemType Directory;
+    foreach ($exe in (@({shim}))) {
+        $exePath = Join-Path -Path $packageContentPath -ChildPath "$exe.gui";
+        [Ref] $null = New-Item -Path $exePath -ItemType File -Force;
     }
-    Write-Host ('Installing to "{0}".' -f $moduleInstallPath);
-    Install-ChocolateyZipPackage '{packagename}' '{downloaduri}' "$moduleInstallPath";
+    Install-ChocolateyZipPackage '{packagename}' '{downloaduri}' "$packageContentPath";
 }
 catch {
     throw $_.Exception;
@@ -94,18 +97,7 @@ catch {
 '@;
 
 $chocolateyPortableZipUninstall = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Zip-based Powershell module installations
-try {
-    $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f [System.Environment]::GetFolderPath('Personal');
-    if ($env:PackageParameters -like '*AllUsers') {
-        $moduleInstallPath = '{0}\WindowsPowershell\Modules' -f $env:ProgramFiles;
-    }
-    Write-Host ('Removing "{0}\{1}".' -f $moduleInstallPath, '{packagename}');
-    Remove-Item -Path "$moduleInstallPath\{packagename}" -Recurse -Force;
-}
-catch {
-    throw $_.Exception;
-}
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Zip-based portable installations
 '@;
 
 $chocolateyScriptInstall = @'
@@ -370,14 +362,17 @@ function New-ChocolateyInstallZipPortable {
         ## Chocolatey package name, i.e. VirtualEngine.Build
         [Parameter(Mandatory = $true)] [System.String] $PackageName,
         ## Zip download Uri
-        [Parameter(Mandatory = $true)] [System.String] $Uri
+        [Parameter(Mandatory = $true)] [System.String] $Uri,
+        ## GUI applications to create shims for. See https://github.com/chocolatey/chocolatey/wiki/CreatePackages for batch redirects.
+        [Parameter()] [System.String[]] $Shim
     )
     begin {
         if (-not (TestChocolateyInstallPath -Path $Path)) { break; }
     }
     process {
         # Copy files to the destination path, replacing tokens on the way.
-        $chocolateyPortableZipInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri |
+        $shims = "'{0}'" -f [System.String]::Join("','", $Shim);
+        $chocolateyPortableZipInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{shim\}', $shims |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
         $chocolateyPortableZipUninstall -replace '\{packagename\}' |
             Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
