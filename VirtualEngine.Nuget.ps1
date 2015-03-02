@@ -38,9 +38,9 @@ function Invoke-NuGetPush {
         try { if (!($process.HasExited)) { Wait-Process -Id $process.Id } } catch { }
 
         Get-Content -Path $logFile -Encoding Ascii;
-        $errors = Get-Content $errorLogFile
         if ($process.ExitCode -ne 0) {
-            Write-Error $errors;
+            $errors = Get-Content $errorLogFile;
+            foreach ($e in $errors) { Write-Error $e; }
         }
     } #end process
 } #end function Invoke-NuGetPack
@@ -83,9 +83,9 @@ function Invoke-NuGetPack {
         try { if (!($process.HasExited)) { Wait-Process -Id $process.Id } } catch { }
 
         Get-Content -Path $logFile -Encoding Ascii;
-        $errors = Get-Content $errorLogFile
         if ($process.ExitCode -ne 0) {
-            Write-Error $errors;
+            $errors = Get-Content $errorLogFile;
+            foreach ($e in $errors) { Write-Error $e; }
         }
     } #end process
 } #end function Invoke-NuGetPack
