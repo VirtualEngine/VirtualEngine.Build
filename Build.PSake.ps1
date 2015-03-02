@@ -54,25 +54,32 @@ Properties {
     $author = 'Iain Brighton';
 }
 
-Task Default -Depends Setup, Clean, Version, Build, Test;
+Task Default -Depends Setup, Clean, Build, Test;
 
-Task Stage -Depends Default, Sign {
+Task Stage -Depends Default, Version, Sign {
     ## Creates the release files in the $releaseDir
     $releaseName = '{0}-v{1}' -f $manifest.Name, $version;
 
     ## Create module zip
     $zipReleaseName = '{0}.zip' -f $releaseName;
     $zipPath = Join-Path -Path $releasePath -ChildPath $zipReleaseName;
+    Write-Host (' Creating zip file "{0}".' -f $zipPath) -ForegroundColor Yellow;
     ## Zip the parent directory
     $zipSourcePath = Split-Path -Path $buildPath -Parent;
-    New-ZipArchive -Path $zipSourcePath -DestinationPath $zipPath;
+    $zipFile = New-ZipArchive -Path $zipSourcePath -DestinationPath $zipPath;
+    Write-Host (' Zip file "{0}" created.' -f $zipFile.Fullname) -ForegroundColor Yellow;
 
     ## Create the Chocolatey package
     $nuspecFilename = '{0}.nuspec' -f $manifest.Name;
     $nuspecPath = Join-Path -Path $chocolateyBuildPath -ChildPath $nuspecFilename;
+    Write-Host (' Creating Nuget specification "{0}".' -f $nuspecPath) -ForegroundColor Yellow;
     (New-NuGetNuspec -InputObject $manifest).Save($nuspecPath);
-    New-ChocolateyInstallModule -Path "$chocolateyBuildPath\tools" -PackageName $manifest.Name -Uri $manifest.PrivateData.PSData.ProjectUri;
-    Invoke-NuGetPack -Path $nuspecPath -DestinationPath $releasePath;
+    
+    Write-Host ' Creating Chocolatey install files.' -ForegroundColor Yellow;
+    New-ChocolateyInstallZipModule -Path "$chocolateyBuildPath\tools" -PackageName $manifest.Name -Uri $manifest.PrivateData.PSData.ProjectUri;
+    Write-Host (' Creating Nuget package "{0}".' -f $nuspecPath) -ForegroundColor Yellow;
+    $nugetOutput = Invoke-NuGetPack -Path $nuspecPath -DestinationPath $releasePath;
+    if ($nugetOutput) { Write-Host (' Chocolatey package "{0}" created.' -f $nuspecPath) -ForegroundColor Yellow; }
 }
 
 Task Publish -Depends Stage {
@@ -128,10 +135,11 @@ Task Build {
 
 Task Version {
     ## Version module manifest prior to build
-    Write-Host (' Versioning module manifest "{0}".' -f $buildManifest.Path) -ForegroundColor Yellow;
-    Set-ModuleManifestProperty -Path $manifest.Path -Version $version -CompanyName $company -Author $author;
+    $manifestPath = Join-Path $buildPath -ChildPath "$($manifest.Name).psd1";
+    Write-Host (' Versioning module manifest "{0}".' -f $manifestPath) -ForegroundColor Yellow;
+    Set-ModuleManifestProperty -Path $manifestPath -Version $version -CompanyName $company -Author $author;
     ## Reload module manifest to ensure the version number is picked back up
-    Set-Variable manifest -Value (Get-ModuleManifest) -Scope Script -Force;
+    Set-Variable manifest -Value (Get-ModuleManifest -Path $manifestPath) -Scope Script -Force;
 }
 
 Task Sign {
