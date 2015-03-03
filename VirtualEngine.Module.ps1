@@ -189,9 +189,12 @@ function Get-ModuleFile {
         # One or more literal files paths to enumerate.
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'LiteralPath')]
         [ValidateNotNullOrEmpty()] [System.String[]] $LiteralPath,
-        # File paths/matches to exclude.
+        # File paths/matches to exclude. Git files are excluded by default, but if
+        # -Excludes are specified, remember to add '.git*' to the exclusion list!
         [Parameter(Position = 1, ValueFromPipelineByPropertyName = $true)]
-        [AllowEmptyCollection()] [System.String[]] $Exclude = @()
+        [AllowEmptyCollection()] [System.String[]] $Exclude = @('.git*'),
+        # Include hidden/system files
+        [Parameter(ValueFromPipelineByPropertyName)] [Switch] $Force
     )
     begin {
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
@@ -205,20 +208,33 @@ function Get-ModuleFile {
         }
     } #end begin
     process {
-        $moduleFiles = Get-ChildItem -Path $Path -Exclude '.git';
-        $ignoredFiles = GetModuleExcludedFile -Path $Path;
-        foreach ($moduleFile in $moduleFiles) {
+        # Only create ignoredFiles once in the parent scope. Recursive calls will use the parent's scoped variable
+        if (!$ignoredFiles) { $ignoredFiles = GetModuleExcludedFile -Path $Path; }
+        foreach ($moduleFile in (Get-ChildItem -Path $Path -Force:$Force -File)) {
             Write-Verbose ('Checking for excluded file "{0}".' -f $moduleFile.FullName);
             ## Check whether the file has been manually excluded
             $isExcluded = $false;
             foreach ($excludedFile in $Exclude) {
                 if ($moduleFile.FullName -like $excludedFile -or $moduleFile.Name -like $excludedFile) {
                     $isExcluded = $true;
-                    Write-Verbose ('File/directory "{0}" has been manually excluded.' -f $moduleFile);
+                    Write-Verbose ('File path "{0}" has been manually excluded by "{1}".' -f $moduleFile, $excludedFile);
                 }
             }
-            if ((-not $isExcluded) -and ($ignoredFiles.FullName -NotContains $moduleFile.FullName)) {
+            if (-not $isExcluded) {
                 Write-Output $moduleFile;
+            }
+        } # end foreach
+
+        foreach ($moduleDirectory in (Get-ChildItem -Path $Path -Force:$Force -Directory)) {
+            $isExcluded = $false;
+            foreach ($excludedDirectory in $Exclude) {
+                if ($moduleDirectory.FullName -like $excludedFile -or $moduleDirectory.Name -like $excludedDirectory) {
+                    $isExcluded = $true;
+                    Write-Verbose ('Ddirectory path "{0}" has been manually excluded by "{1}".' -f $moduleFile, $excludedDirectory);
+                }
+            }
+            if (-not $isExcluded) {
+                Get-ModuleFile -Path $moduleDirectory.FullName -Exclude $Exclude -Force:$force;
             }
         } # end foreach
     } #end process
@@ -384,19 +400,15 @@ function GetModuleExcludedFile {
         } # end if
         if (-not (Test-Path -Path $Path -PathType Container)) {
             Write-Error ('Not a valid directory path "{0}".' -f $Path);
-        }
-        $gitAttributesPath = Join-Path -Path $Path -ChildPath '.gitattributes';
-        if (-not (Test-Path -Path $gitAttributesPath -PathType Leaf)) {
-            Write-Error ('No valid .gitattributes found in path "{0}".' -f $Path);
-        }
-        $gitIgnorePath = Join-Path -Path $Path -ChildPath '.gitignore';
-        if (-not (Test-Path -Path $gitIgnorePath -PathType Leaf)) {
-            Write-Error ('No valid .gitignore found in path "{0}".' -f $Path);
-        }
+        }      
     } #end begin
     process {
         ## Parse .gitignore
-        if (-not ([System.String]::IsNullOrEmpty($gitIgnorePath))) {
+        $gitIgnorePath = Join-Path -Path $Path -ChildPath '.gitignore';
+        if (-not (Test-Path -Path $gitIgnorePath -PathType Leaf)) {
+            Write-Verbose ('No valid .gitignore found in path "{0}".' -f $Path);
+        }
+        else {
             $gitIgnores = Get-Content -Path $gitIgnorePath -Force;
             foreach ($gitIgnore in $gitIgnores) {
                 ## Check whether we have a directory
@@ -416,7 +428,11 @@ function GetModuleExcludedFile {
         } #end if
 
         ## Parse .gitattributes
-        if (-not ([System.String]::IsNullOrEmpty($gitAttributesPath))) {
+        $gitAttributesPath = Join-Path -Path $Path -ChildPath '.gitattributes';
+        if (-not (Test-Path -Path $gitAttributesPath -PathType Leaf)) {
+            Write-Verbose ('No valid .gitattributes found in path "{0}".' -f $Path);
+        }
+        else {
             $gitAttributes = Get-Content -Path $gitAttributesPath -Force;
             $gitAttributes = $gitAttributes | Select-String -SimpleMatch 'export-ignore';
             foreach ($gitAttribute in $gitAttributes) {
