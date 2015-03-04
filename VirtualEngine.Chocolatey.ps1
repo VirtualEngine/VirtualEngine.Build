@@ -75,17 +75,24 @@ Install-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype
 '@;
 
 $chocolateyUninstallExe = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE/MSI installations
-Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -File "{uninstallfile}"; 
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE installations
+Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType 'EXE' -SilentArgs '{arguments}' -File "{uninstallfile}"; 
 '@;
 
 $chocolateyUninstallMsi = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE/MSI installations
-Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}'; 
+## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for MSI installations
+try {
+    Get-WmiObject -Class Win32_Product | Where { $_.Name -eq '{productname}' } | ForEach-Object {
+	    Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType 'MSI' -SilentArgs "$($_.IdentifyingNumber) /qn /norestart"; 
+    }
+}
+catch {
+    throw $_.Exception;
+}
 '@;
 
 $chocolateyInstallZipPackage = @'
-## Template VirtualEngine.Build ChocolateyInstall.ps1 file for zippped EXE/MSI installations
+## Template VirtualEngine.Build ChocolateyInstall.ps1 file for zipped EXE/MSI installations
 $packageToolsPath = Split-Path -parent $MyInvocation.MyCommand.Definition;
 Install-ChocolateyZipPackage -PackageName '{packagename}' -Url '{downloaduri}' -UnzipLocation $packageToolsPath;
 $packageFilePath = Join-Path $packageToolsPath -ChildPath '{file}';
@@ -116,10 +123,6 @@ try {
 catch {
     throw $_.Exception;
 };
-'@;
-
-$chocolateyUninstallZipPortable = @'
-## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for Zip-based portable installations
 '@;
 
 $chocolateyInstallBundleScript = @'
@@ -221,7 +224,7 @@ function New-ChocolateyInstallZipPackage {
             For EXE deployments, the uninstallation file path must point to a locally installed file
             that performs the unattended installation.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'MSI')]
     param (
         ## Destination directory for the ChocolateyInstall.ps1 and ChocolateyUninstall.ps1 files.
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
@@ -243,8 +246,10 @@ function New-ChocolateyInstallZipPackage {
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $Arguments,
-        ## Installer silent uninstallation arguments.
+        ## Windows Installer product name for uninstallation
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [System.String] $ProductName,
+        ## Installer silent uninstallation arguments.
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $UninstallArguments,
         ## Installer is an EXE file.
@@ -262,11 +267,11 @@ function New-ChocolateyInstallZipPackage {
         $chocolateyInstallZipPackage -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments -replace  '\{file\}', $File |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
         if ($PSCmdlet.ParameterSetName -eq 'EXE') {
-            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
+            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
         else {
-            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments |
+            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
      } #end process
@@ -286,7 +291,7 @@ function New-ChocolateyInstallBundledPackage {
             For EXE deployments, the uninstallation file path must point to a locally installed file
             that performs the unattended installation.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'MSI')]
     param (
         ## Destination directory for the ChocolateyInstall.ps1 and ChocolateyUninstall.ps1 files.
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
@@ -304,8 +309,10 @@ function New-ChocolateyInstallBundledPackage {
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $Arguments,
-        ## Installer silent uninstallation arguments.
+        ## Windows Installer product name for uninstallation
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [System.String] $ProductName,
+        ## Installer silent uninstallation arguments.
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $UninstallArguments,
         ## Installer is an EXE file.
@@ -323,11 +330,11 @@ function New-ChocolateyInstallBundledPackage {
         $chocolateyInstallBundlePackage -replace '\{packagename\}', $PackageName -replace '\{file\}', $File -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
         if ($PSCmdlet.ParameterSetName -eq 'EXE') {
-            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
+            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
         else {
-            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments |
+            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
      } #end process
@@ -347,7 +354,7 @@ function New-ChocolateyInstallPackage {
             For EXE deployments, the uninstallation file path must point to a locally installed file
             that performs the unattended installation.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'MSI')]
     param (
         ## Destination directory for the ChocolateyInstall.ps1 and ChocolateyUninstall.ps1 files.
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
@@ -365,8 +372,10 @@ function New-ChocolateyInstallPackage {
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $Arguments,
-        ## Installer silent uninstallation arguments.
+        ## Windows Installer product name for uninstallation
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
+        [System.String] $ProductName,
+        ## Installer silent uninstallation arguments.
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $UninstallArguments,
         ## Installer is an EXE file.
@@ -384,11 +393,11 @@ function New-ChocolateyInstallPackage {
         $chocolateyInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
         if ($PSCmdlet.ParameterSetName -eq 'EXE') {
-            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
+            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
         else {
-            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{installertype\}', $fileType -replace '\{arguments\}', $UninstallArguments |
+            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
      } #end process
@@ -426,8 +435,6 @@ function New-ChocolateyInstallZipPortable {
         $shims = "'{0}'" -f [System.String]::Join("','", $Shim);
         $chocolateyInstallZipPortable -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{shim\}', $shims |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
-        $chocolateyUninstallZipPortable -replace '\{packagename\}' |
-            Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
     } #end process
 } #end function New-ChocolateyInstallPortable
 
