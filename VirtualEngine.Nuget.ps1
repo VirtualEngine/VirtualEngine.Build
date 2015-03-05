@@ -173,10 +173,10 @@ function New-NuGetNuspec {
             $Copyright = $InputObject.Copyright;
             $LicenseUrl = $InputObject.PrivateData.PSData.LicenseUri;
             $Tags = $InputObject.PrivateData.PSData.Tags;
-            $IconUrl = $InputObject.IconUri.AbsoluteUri;
+            $IconUrl = $InputObject.PrivateData.PSData.IconUri;
         }
         ## Ensure Id is lowercase and contains no spaces
-        $Name = $Name.ToLower().Replace(' ','');
+        $Name = $Name.ToLower().Replace(' ','-');
 
         ## Create .nuspec
         [System.Xml.XmlDocument] $nuspec = New-Object System.Xml.XmlDocument;
