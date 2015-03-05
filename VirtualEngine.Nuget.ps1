@@ -144,7 +144,7 @@ function New-NuGetNuspec {
          # A list of tags and keywords that describe the package
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [AllowNull()] [System.String[]] $Tags,
-         # A list of dependencies for the package.
+         # A list of dependencies for the package. Specify version number after the package name with a colon, i.e. VirtualEngine-Compression:1.1.0.18
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [AllowNull()] [System.String[]] $Dependencies
      )
@@ -212,6 +212,15 @@ function New-NuGetNuspec {
         if ($Tags) {
             $tagsNode = $metadata.AppendChild($nuspec.CreateElement('tags'));
             [ref] $null = $tagsNode.AppendChild($nuspec.CreateTextNode([string]::Join(' ', $Tags)));
+        }
+        if ($Dependencies) {
+            $dependenciesNode = $metadata.AppendChild($nuspec.CreateElement('dependencies'));
+            foreach ($dependency in $Dependencies) {
+                $dependencyNode = $dependenciesNode.AppendChild($nuspec.CreateElement('dependency'));
+                $dependencySplit = $dependency.Split(':');
+                $dependencyNode.SetAttribute(“id”, $dependencySplit[0]);
+                if ($dependencySplit[1]) { $dependencyNode.SetAttribute(“version”, $dependencySplit[1]); }
+            }
         }
         Write-Output $nuspec;
      } #end process
