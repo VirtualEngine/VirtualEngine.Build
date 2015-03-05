@@ -71,19 +71,19 @@ catch {
 
 $chocolateyInstall = @'
 ## Template VirtualEngine.Build ChocolateyInstall.ps1 file for EXE/MSI installations
-Install-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -Url '{downloaduri}';
+Install-ChocolateyPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -Url '{downloaduri}' -ValidExitCodes @({exitcodes});
 '@;
 
 $chocolateyUninstallExe = @'
 ## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for EXE installations
-Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType 'EXE' -SilentArgs '{arguments}' -File "{uninstallfile}"; 
+Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType 'EXE' -SilentArgs '{arguments}' -File "{uninstallfile}" -ValidExitCodes @({exitcodes}); 
 '@;
 
 $chocolateyUninstallMsi = @'
 ## Template VirtualEngine.Build ChocolateyUninstall.ps1 file for MSI installations
 try {
     Get-WmiObject -Class Win32_Product | Where { $_.Name -eq '{productname}' } | ForEach-Object {
-	    Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType 'MSI' -SilentArgs "$($_.IdentifyingNumber) /qn /norestart"; 
+	    Uninstall-ChocolateyPackage -PackageName '{packagename}' -FileType 'MSI' -SilentArgs "$($_.IdentifyingNumber) /qn /norestart" -ValidExitCodes @({exitcodes}); 
     }
 }
 catch {
@@ -104,7 +104,7 @@ $chocolateyInstallBundlePackage = @'
 $packageToolsPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent;
 $packagePath = Split-Path -Path $packageToolsPath -Parent;
 $bundleFilePath = Join-Path -Path $packagePath -ChildPath '{file}';
-Install-ChocolateyInstallPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -File $bundleFilePath;
+Install-ChocolateyInstallPackage -PackageName '{packagename}' -FileType '{installertype}' -SilentArgs '{arguments}' -File $bundleFilePath -ValidExitCodes @({exitcodes});
 '@;
 
 $chocolateyInstallZipPortable = @'
@@ -309,6 +309,14 @@ function New-ChocolateyInstallBundledPackage {
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $Arguments,
+        ## Valid installer exit codes.
+        [Parameter(ParameterSetName = 'MSI')]
+        [Parameter(ParameterSetName = 'EXE')]
+        [System.Int32[]] $ValidInstallExitCode = @(0,3010),
+        ## Valid uninstaller exit codes.
+        [Parameter(ParameterSetName = 'MSI')]
+        [Parameter(ParameterSetName = 'EXE')]
+        [System.Int32[]] $ValidUninstallExitCode = @(0,3010),
         ## Windows Installer product name for uninstallation
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [System.String] $ProductName,
@@ -327,14 +335,14 @@ function New-ChocolateyInstallBundledPackage {
     }
     process {
         # Copy files to the destination path, replacing tokens on the way.
-        $chocolateyInstallBundlePackage -replace '\{packagename\}', $PackageName -replace '\{file\}', $File -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments |
+        $chocolateyInstallBundlePackage -replace '\{packagename\}', $PackageName -replace '\{file\}', $File -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments -replace '\{exitcodes\}', ([System.String]::Join(',', $ValidInstallExitCode)) |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
         if ($PSCmdlet.ParameterSetName -eq 'EXE') {
-            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
+            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath -replace '\{exitcodes\}', ([System.String]::Join(',', $ValidUninstallExitCode)) |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
         else {
-            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName |
+            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName -replace '\{exitcodes\}', ([System.String]::Join(',', $ValidUninstallExitCode)) |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
      } #end process
@@ -372,6 +380,14 @@ function New-ChocolateyInstallPackage {
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [Parameter(Mandatory = $true, ParameterSetName = 'EXE')]
         [System.String] $Arguments,
+        ## Valid installer exit codes.
+        [Parameter(ParameterSetName = 'MSI')]
+        [Parameter(ParameterSetName = 'EXE')]
+        [System.Int32[]] $ValidInstallExitCode = @(0,3010),
+        ## Valid uninstaller exit codes.
+        [Parameter(ParameterSetName = 'MSI')]
+        [Parameter(ParameterSetName = 'EXE')]
+        [System.Int32[]] $ValidUninstallExitCode = @(0,3010),
         ## Windows Installer product name for uninstallation
         [Parameter(Mandatory = $true, ParameterSetName = 'MSI')]
         [System.String] $ProductName,
@@ -390,14 +406,14 @@ function New-ChocolateyInstallPackage {
     }
     process {
         # Copy files to the destination path, replacing tokens on the way.
-        $chocolateyInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments |
+        $chocolateyInstall -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri -replace '\{installertype\}', $fileType -replace '\{arguments\}', $Arguments -replace '\{exitcodes\}', ([System.String]::Join(',', $ValidInstallExitCode)) |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
         if ($PSCmdlet.ParameterSetName -eq 'EXE') {
-            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath |
+            $chocolateyUninstallExe -replace '\{packagename\}', $PackageName -replace '\{arguments\}', $UninstallArguments -replace '\{uninstallfile\}', $UninstallPath -replace '\{exitcodes\}', ([System.String]::Join(',', $ValidUninstallExitCode)) |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
         else {
-            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName |
+            $chocolateyUninstallMsi -replace '\{packagename\}', $PackageName -replace '\{productname\}', $ProductName -replace '\{exitcodes\}', ([System.String]::Join(',', $ValidUninstallExitCode)) |
                 Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
         }
      } #end process
