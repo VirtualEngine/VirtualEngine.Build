@@ -205,7 +205,7 @@ function New-ChocolateyInstallZipModule {
         # Copy files to the destination path, replacing tokens on the way.
         $chocolateyInstallZipModule -replace '\{packagename\}', $PackageName -replace '\{downloaduri\}', $Uri |
             Set-Content -Path "$Path\ChocolateyInstall.ps1" -Encoding UTF8;
-        $chocolateyUninstallZipModule -replace '\{packagename\}' |
+        $chocolateyUninstallZipModule -replace '\{packagename\}', $PackageName |
             Set-Content -Path "$Path\ChocolateyUninstall.ps1" -Encoding UTF8;
     } #end process
 } #end function New-ChocolateyInstallModule
