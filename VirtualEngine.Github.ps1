@@ -42,7 +42,7 @@ function New-GitHubRelease {
     param (
         ## Release version, i.e. v1.2.3 or 1.2.3
         [Parameter(ValueFromPipelineByPropertyName = $true)] [ValidateNotNullOrEmpty()] [System.String] $Version = (Get-GitVersionString),
-        ## Guthub repository owner
+        ## Github repository owner
         [Parameter(Mandatory = $true)] [System.String] [Alias('Username')] $Owner,
         ## Github repository name
         [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true)] [System.String] $Repository,
