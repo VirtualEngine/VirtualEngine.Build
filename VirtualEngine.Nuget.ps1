@@ -122,7 +122,7 @@ function New-NuGetNuspec {
          [AllowNull()] [System.String[]] $Owners,
          # A short description of the package.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [AllowNull()] [System.String] $Summary,
+         [ValidateNotNullOrEmpty()] [System.String] $Summary = $Title,
          # A long description of the package.
          [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [ValidateNotNullOrEmpty()] [System.String] $Description,
@@ -195,6 +195,8 @@ function New-NuGetNuspec {
         [ref] $null = $authorsNode.AppendChild($nuspec.CreateTextNode([string]::Join(',', $Authors)));
         $ownersNode = $metadata.AppendChild($nuspec.CreateElement('owners'));
         [ref] $null = $ownersNode.AppendChild($nuspec.CreateTextNode([string]::Join(',', $Owners)));
+        $summaryNode = $metadata.AppendChild($nuspec.CreateElement('summary'));
+        [ref] $null = $summaryNode.AppendChild($nuspec.CreateTextNode($Summary));
         $descriptionNode = $metadata.AppendChild($nuspec.CreateElement('description'));
         [ref] $null = $descriptionNode.AppendChild($nuspec.CreateTextNode($Description));
         $projectUrlNode = $metadata.AppendChild($nuspec.CreateElement('projectUrl'));
