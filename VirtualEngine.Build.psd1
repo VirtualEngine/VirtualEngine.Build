@@ -1,7 +1,7 @@
 ﻿@{
 
     RootModule = 'VirtualEngine.Build.psm1';
-    ModuleVersion = '0.3.1.0';
+    ModuleVersion = '0.4.1.0';
     GUID = '55b9490e-2766-45f8-bfc7-4e919943bfaa';
     Author = 'Iain Brighton';
     CompanyName = 'Virtual Engine Limited';
