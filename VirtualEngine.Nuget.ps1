@@ -133,8 +133,8 @@ function New-NuGetNuspec {
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [AllowNull()] [System.String] $IconUrl,
          # A URL to the license that the package is under.
-         [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
-         [ValidateNotNullOrEmpty()] [System.String] $LicenseUrl,
+         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
+         [AllowNull()] [System.String] $LicenseUrl,
          # Copyright details of the package.
          [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Manual')]
          [ValidateNotNullOrEmpty()] [System.String] $Copyright,
@@ -159,9 +159,8 @@ function New-NuGetNuspec {
                 Write-Error ('PrivateData.PSData.ProjectUri is not defined in the module manifest.');
                 break;
             }
-            if (-not ($InputObject.PrivateData.PSData.LicenseUri)) {
-                Write-Error ('PrivateData.PSData.LicenseUri is not defined in the module manifest.');
-                break;
+            if ($InputObject.PrivateData.PSData.LicenseUri) {
+                $LicenseUrl = $InputObject.PrivateData.PSData.LicenseUri;
             }
             $Name = $InputObject.Name;
             $Version = $InputObject.Version.ToString();
@@ -171,7 +170,6 @@ function New-NuGetNuspec {
             $Description = $InputObject.Description;
             $ProjectUrl = $InputObject.PrivateData.PSData.ProjectUri;
             $Copyright = $InputObject.Copyright;
-            $LicenseUrl = $InputObject.PrivateData.PSData.LicenseUri;
             $Tags = $InputObject.PrivateData.PSData.Tags;
             $IconUrl = $InputObject.PrivateData.PSData.IconUri;
         }
@@ -207,10 +205,12 @@ function New-NuGetNuspec {
             $iconUrlNode = $metadata.AppendChild($nuspec.CreateElement('iconUrl'));
             [ref] $null = $iconUrlNode.AppendChild($nuspec.CreateTextNode($IconUrl));
         }
-        $licenseUrlNode = $metadata.AppendChild($nuspec.CreateElement('licenseUrl'));
-        [ref] $null = $licenseUrlNode.AppendChild($nuspec.CreateTextNode($LicenseUrl));
-        $requireLicenseAcceptanceNode = $metadata.AppendChild($nuspec.CreateElement('requireLicenseAcceptance'));
-        [ref] $null = $requireLicenseAcceptanceNode.AppendChild($nuspec.CreateTextNode($RequireLicenseAcceptance.ToString().ToLower()));
+        if ($LicenseUrl) {
+            $licenseUrlNode = $metadata.AppendChild($nuspec.CreateElement('licenseUrl'));
+            [ref] $null = $licenseUrlNode.AppendChild($nuspec.CreateTextNode($LicenseUrl));
+            $requireLicenseAcceptanceNode = $metadata.AppendChild($nuspec.CreateElement('requireLicenseAcceptance'));
+            [ref] $null = $requireLicenseAcceptanceNode.AppendChild($nuspec.CreateTextNode($RequireLicenseAcceptance.ToString().ToLower()));
+        }
         if ($Tags) {
             $tagsNode = $metadata.AppendChild($nuspec.CreateElement('tags'));
             [ref] $null = $tagsNode.AppendChild($nuspec.CreateTextNode([string]::Join(' ', $Tags)));
