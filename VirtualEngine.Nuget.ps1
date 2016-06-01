@@ -168,6 +168,7 @@ function New-NuGetNuspec {
             $Authors = @($InputObject.Author);
             $Owners = @($InputObject.CompanyName);
             $Description = $InputObject.Description;
+            $Summary = $InputObject.Description;
             $ProjectUrl = $InputObject.PrivateData.PSData.ProjectUri;
             $Copyright = $InputObject.Copyright;
             $Tags = $InputObject.PrivateData.PSData.Tags;
@@ -220,8 +221,8 @@ function New-NuGetNuspec {
             foreach ($dependency in $Dependencies) {
                 $dependencyNode = $dependenciesNode.AppendChild($nuspec.CreateElement('dependency'));
                 $dependencySplit = $dependency.Split(':');
-                $dependencyNode.SetAttribute(“id”, $dependencySplit[0]);
-                if ($dependencySplit[1]) { $dependencyNode.SetAttribute(“version”, $dependencySplit[1]); }
+                $dependencyNode.SetAttribute('id', $dependencySplit[0]);
+                if ($dependencySplit[1]) { $dependencyNode.SetAttribute('version', $dependencySplit[1]); }
             }
         }
         Write-Output $nuspec;
