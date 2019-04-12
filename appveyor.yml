@@ -17,6 +17,8 @@ on_finish:
   - ps: |
         Invoke-PSake -BuildFile .\Build.PSake.ps1 -TaskList Appveyor
 
+for:
+
 -
   branches:
     only:
