@@ -1,13 +1,14 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path;
-$moduleName = (Get-Item -Path "$here\..\..\..\..\").Name
-Import-Module "$moduleName.psd1" -Force
+$moduleName = 'VirtualEngine.Build';
+$moduleRoot = (Get-Item -Path "$here\..\..\..\..\").FullName
+Import-Module "$moduleRoot\$moduleName.psd1" -Force
 
 InModuleScope $moduleName {
     Describe 'VirtualEngine.Build\Get-FileEncoding' {
-        
+
         $testPath = 'TestDrive:\Get-FileEncodingTest.txt';
         $testContent = 'VirtualEngine.Build\Get-FileEncoding'
-        
+
         It 'Reports ASCII encoding' {
             Set-Content -Path $testPath -Value $testContent -Encoding Ascii
 
