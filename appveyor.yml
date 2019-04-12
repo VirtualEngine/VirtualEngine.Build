@@ -11,23 +11,32 @@ install:
     - ps: Write-Verbose -Message "PowerShell version $($PSVersionTable.PSVersion)" -Verbose
     - ps: Install-Module -Name Pester, PSSCriptAnalyzer, PSake -Scope CurrentUser -Force -Verbose
 
-#---------------------------------#
-#      build configuration        #
-#---------------------------------#
-
 build: false
-
-#---------------------------------#
-#      test configuration         #
-#---------------------------------#
-
-test_script:
-    - ps: |
-        Import-Module .\VirtualEngine.Build.psd1 -Force
-        Invoke-PSake -BuildFile .\Build.PSake.ps1 -TaskList Default
-        Write-Verbose "PSake.build_success: $($psake.build_success)" -Verbose
-        if (-not $psake.build_success) { exit 1 }
 
 on_finish:
   - ps: |
         Invoke-PSake -BuildFile .\Build.PSake.ps1 -TaskList Appveyor
+
+-
+  branches:
+    only:
+      - dev
+
+  test_script:
+      - ps: |
+          Import-Module .\VirtualEngine.Build.psd1 -Force
+          Invoke-PSake -BuildFile .\Build.PSake.ps1 -TaskList Default
+          Write-Verbose "PSake.build_success: $($psake.build_success)" -Verbose
+          if (-not $psake.build_success) { exit 1 }
+
+-
+  branches:
+    only:
+      - master
+
+  test_script:
+      - ps: |
+          Import-Module .\VirtualEngine.Build.psd1 -Force
+          Invoke-PSake -BuildFile .\Build.PSake.ps1 -TaskList Publish
+          Write-Verbose "PSake.build_success: $($psake.build_success)" -Verbose
+          if (-not $psake.build_success) { exit 1 }
