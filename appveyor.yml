@@ -6,10 +6,13 @@ version: 1.0.{build}
 environment:
   gallery_api_key:
     secure: WeDp1yZJECZBjjW+22A8lA8+gmz+wiYostPKtU4pdLXORfK//eJCdR7f0k3oJ+2r
+  certificate_secret:
+    secure: 2NeBUwfDSJomxCyxUlwnqw==
 
 install:
     - ps: Write-Verbose -Message "PowerShell version $($PSVersionTable.PSVersion)" -Verbose
     - ps: Install-Module -Name Pester, PSSCriptAnalyzer, PSake -Scope CurrentUser -Force -Verbose
+    - ps: $null = Invoke-Expression ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
 
 build: false
 
