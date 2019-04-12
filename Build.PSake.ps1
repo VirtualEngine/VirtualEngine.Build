@@ -1,229 +1,140 @@
-#requires -Module VirtualEngine.Build, VirtualEngine.Compression;
-#requires -Version 3;
+#requires -Version 5;
 
-<#
-## Github Powershell Project Releases
+Import-Module $PSScriptRoot\*.psd1 -Force
 
- 1. PSake - Clean
-  1.1 Remove the Build\ directory
-
- 2. PSake - Build
-  2.1 Create Build\ directory
-
- 3. PSake - Test
-  3.1 Invoke-Pester
-  3.2 Right output xml to Build\ directory
-
- 4. PSake - Release/Stage
-  4.1 Create build\ModuleName directory
-  4.2 Copy required files into build\ModuleName directory
-  4.3 Update module manifest with version number
-  4.4 Sign files
-  4.5 Zip build\ModuleName directory to release\ModuleName-v1.2.3.4.zip
-
- 5. PSake - Publish/Release
-
-  5.1 Github
-   5.1.1 Tag local repo with version number
-          - requires encryption of ApiKey
-   5.1.2 Create change log/release notes (#changelog in commit message?)
-   5.1.3 Create Github Release with version number and change log
-   5.1.4 Upload artifact/asset
-
-  5.2 Chocolatey
-   5.2.1 Create \Chocolatey directory
-   5.2.2 Deploy ChocolateyInstall.ps1 and ChocolateyUninstall.ps1
-   5.2.3 Create Nuspec: release\ModuleName-v1.2.3.4.nuspec
-          - download URL from asset upload
-   5.2.4 Push Nuspec to Chocolatey
-          - requires encryption of ApiKey
-  
-  5.3 PowershellGet
-    5.3.1 Should be able to push the release\ModuleName folder?
-#>
+$psake.use_exit_on_error = $true;
 
 Properties {
-    $currentDir = Resolve-Path -Path .;
+    $moduleName = (Get-Item $PSScriptRoot\*.psd1)[0].BaseName;
     $basePath = $psake.build_script_dir;
-    $buildDir = 'Build';
-    $releaseDir = 'Release';
-    $invocation = (Get-Variable MyInvocation -Scope 1).Value;
-    $thumbprint = 'D10BB31E5CE3048A7D4DA0A4DD681F05A85504D3';
+    $buildDir = 'Release';
+    $buildPath = (Join-Path -Path $basePath -ChildPath $buildDir);
+    $releasePath = (Join-Path -Path $buildPath -ChildPath $moduleName);
+    $thumbprint = '3DACD0F2D1E60EB33EC774B9CFC89A4BEE9037AF';
     $timeStampServer = 'http://timestamp.verisign.com/scripts/timestamp.dll';
-    $company = 'Virtual Engine Limited';
-    $author = 'Iain Brighton';
+    $exclude = @(
+                '.git*',
+                '.vscode',
+                'Release',
+                'Tests',
+                'Build.PSake.ps1',
+                '*.png',
+                '*.md',
+                'TestResults.xml',
+                'appveyor.yml'
+                );
+    $signExclude = @('Examples','DSCResources');
 }
 
-Task Default -Depends Setup, Clean, Build, Test;
+# Synopsis:
+Task Init {
 
-Task Stage -Depends Default, Version, Sign {
-    ## Creates the release files in the $releaseDir
-    $releaseName = '{0}-v{1}' -f $manifest.Name, $version;
-
-    ## Create module zip
-    $zipReleaseName = '{0}.zip' -f $releaseName;
-    $zipPath = Join-Path -Path $releasePath -ChildPath $zipReleaseName;
-    Write-Host (' Creating zip file "{0}".' -f $zipPath) -ForegroundColor Yellow;
-    ## Zip the parent directory
-    $zipSourcePath = Split-Path -Path $buildPath -Parent;
-    $zipFile = New-ZipArchive -Path $zipSourcePath -DestinationPath $zipPath;
-    Write-Host (' Zip file "{0}" created.' -f $zipFile.Fullname) -ForegroundColor Yellow;
-
-    ## Create the Chocolatey package
-    $nuspecFilename = '{0}.nuspec' -f $manifest.Name;
-    $nuspecPath = Join-Path -Path $chocolateyBuildPath -ChildPath $nuspecFilename;
-    Write-Host (' Creating Nuget specification "{0}".' -f $nuspecPath) -ForegroundColor Yellow;
-    (New-NuGetNuspec -InputObject $manifest).Save($nuspecPath);
-    
-    Write-Host ' Creating Chocolatey install files.' -ForegroundColor Yellow;
-    New-ChocolateyInstallZipModule -Path "$chocolateyBuildPath\tools" -PackageName $manifest.Name -Uri $manifest.PrivateData.PSData.ProjectUri;
-    Write-Host (' Creating Nuget package "{0}".' -f $nuspecPath) -ForegroundColor Yellow;
-    $nugetOutput = Invoke-NuGetPack -Path $nuspecPath -DestinationPath $releasePath;
-    if ($nugetOutput) { Write-Host (' Chocolatey package "{0}" created.' -f $nuspecPath) -ForegroundColor Yellow; }
-}
-
-Task Publish -Depends Stage {
-
-}
-
-Task Setup {
     # Properties are not available in the script scope.
     Set-Variable manifest -Value (Get-ModuleManifest) -Scope Script;
-    Set-Variable buildPath -Value (Join-Path -Path $psake.build_script_dir -ChildPath "$buildDir\$($manifest.Name)") -Scope Script;
-    Set-Variable chocolateyBuildPath -Value (Join-Path -Path $psake.build_script_dir -ChildPath "$buildDir\Chocolatey") -Scope Script;
-    Set-Variable releasePath -Value (Join-Path -Path $psake.build_script_dir -ChildPath $releaseDir) -Scope Script;
+    Set-Variable version -Value (New-ModuleVersionNumber -Path "$moduleName.psd1") -Scope Script;
+    Write-Host (" Building module '{0}'." -f $manifest.Name) -ForegroundColor Yellow;
+    Write-Host (" Building version '{0}'." -f $version) -ForegroundColor Yellow;
+} #end task Init
 
-    Set-Variable version -Value (Get-GitVersionString) -Scope Script;
+# Synopsis: Cleans the release directory
+Task Clean -Depends Init {
 
-    Write-Host (' Building module "{0}".' -f $manifest.Name) -ForegroundColor Yellow;
-    Write-Host (' Using Git version "{0}".' -f $version) -ForegroundColor Yellow;
-}
+    Write-Host (' Cleaning release directory "{0}".' -f $buildPath) -ForegroundColor Yellow;
+    if (Test-Path -Path $buildPath) {
+        Remove-Item -Path $buildPath -Include * -Recurse -Force;
+    }
+    [ref] $null = New-Item -Path $buildPath -ItemType Directory -Force;
+    [ref] $null = New-Item -Path $releasePath -ItemType Directory -Force;
+} #end task Clean
 
-Task Clean {
-    ## Remove build directory
-    $baseBuildPath = Join-Path -Path $psake.build_script_dir -ChildPath $buildDir;
-    if (Test-Path -Path $baseBuildPath) {
-        Write-Host (' Removing build base directory "{0}".' -f $baseBuildPath) -ForegroundColor Yellow;
-        Remove-Item $baseBuildPath -Recurse -Force -ErrorAction Stop;
+# Synopsis: Invokes Pester tests
+Task Test -Depends Init {
+
+    $invokePesterParams = @{
+        Path = "$basePath\Tests";
+        OutputFile = "$basePath\TestResults.xml";
+        OutputFormat = 'NUnitXml';
+        Strict = $true;
+        PassThru = $true;
+        Verbose = $false;
+    }
+    $testResult = Invoke-Pester @invokePesterParams;
+    if ($testResult.FailedCount -gt 0) {
+        Write-Error ('Failed "{0}" unit tests.' -f $testResult.FailedCount);
     }
 }
 
-Task Build {
-    ## Create the build directory
-    Write-Host (' Creating build directory "{0}".' -f $buildPath) -ForegroundColor Yellow;
-    [Ref] $null = New-Item $buildPath -ItemType Directory -Force -ErrorAction Stop;
-    ## Create the release directory
-    if (!(Test-Path -Path $releasePath)) {
-        Write-Host (' Creating release directory "{0}".' -f $releasePath) -ForegroundColor Yellow;
-        [Ref] $null = New-Item $releasePath -ItemType Directory -Force -ErrorAction Stop;
-    }  
-    ## Create the Chocolatey folder
-    Write-Host (' Creating Chocolatey directory "{0}".' -f $chocolateyBuildPath) -ForegroundColor Yellow;
-    [Ref] $null = New-Item $chocolateyBuildPath -ItemType Directory -Force -ErrorAction Stop;
-    [Ref] $null = New-Item "$chocolateyBuildPath\tools" -ItemType Directory -Force -ErrorAction Stop;
+# Synopsis: Copies release files to the release directory
+Task Deploy -Depends Clean {
 
-    ## Copy release files
-    Write-Host (' Copying release files to build directory "{0}".' -f $buildPath) -ForegroundColor Yellow;
-    $excludedFiles = @( '*.Tests.ps1','Build.PSake.ps1','Chocolatey*','.git*' );
-    Get-ModuleFile -Exclude $excludedFiles | Copy-Item -Destination $buildPath -Recurse;
-
-    ## Update license
-    $licensePath = Join-Path -Path $buildPath -ChildPath LICENSE;
-    Write-Host (' Creating license file "{0}".' -f $licensePath) -ForegroundColor Yellow;
-    [Ref] $null = New-ModuleLicense -Path $licensePath -LicenseType MIT -FullName $company;
-}
-
-Task Version {
-    ## Version module manifest prior to build
-    $manifestPath = Join-Path $buildPath -ChildPath "$($manifest.Name).psd1";
-    Write-Host (' Versioning module manifest "{0}".' -f $manifestPath) -ForegroundColor Yellow;
-    Set-ModuleManifestProperty -Path $manifestPath -Version $version -CompanyName $company -Author $author;
-    ## Reload module manifest to ensure the version number is picked back up
-    Set-Variable manifest -Value (Get-ModuleManifest -Path $manifestPath) -Scope Script -Force;
-}
-
-Task Sign {
-    Get-ChildItem -Path $buildPath -Include *.ps* -Recurse -File | % {
-        Write-Host (' Signing file "{0}":' -f $PSItem.FullName) -ForegroundColor Yellow -NoNewline;
-        $signResult = Set-ScriptSignature -Path $PSItem.FullName -Thumbprint $thumbprint -TimeStampServer $timeStampServer -ErrorAction Stop;
-        Write-Host (' {0}.' -f $signResult.Status) -ForegroundColor Green;
+    Get-ChildItem -Path $basePath -Exclude $exclude | ForEach-Object {
+        Write-Host (' Copying {0}' -f $PSItem.FullName) -ForegroundColor Yellow;
+        Copy-Item -Path $PSItem -Destination $releasePath -Recurse;
     }
-}
+} #end
 
-Task Test {
-    $testResultsPath = Join-Path $buildPath -ChildPath 'NUnit.xml';
-    $testResults = Invoke-Pester -Path $basePath -OutputFile $testResultsPath -OutputFormat NUnitXml -PassThru -Strict;
-    if ($testResults.FailedCount -gt 0) {
-        Write-Error ('{0} unit tests failed.' -f $testResults.FailedCount);
-    }
-}
+# Synopsis: Signs files in release directory
+Task Sign -Depends Deploy {
 
-<#
-task CreateReleaseZipDirectory {
-    Remove-Item -Path $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue;
-    [ref] $null = New-Item -Path $zipDirectory -ItemType Container;
-}
+    Get-ChildItem -Path $releasePath -Exclude $signExclude | ForEach-Object {
+        if ($PSItem -is [System.IO.DirectoryInfo]) {
+            Get-ChildItem -Path $PSItem.FullName -Include *.ps* -Recurse | ForEach-Object {
+                Write-Host (' Signing {0}' -f $PSItem.FullName) -ForegroundColor Yellow -NoNewline;
+                $signResult = Set-ScriptSignature -Path $PSItem.FullName -Thumbprint $thumbprint -TimeStampServer $timeStampServer -ErrorAction Stop;
+                Write-Host (' {0}.' -f $signResult.Status) -ForegroundColor Green;
+            }
 
-task StageReleaseZipFiles -depends CreateReleaseZipDirectory {
-
-    $codeSigningCert = Get-ChildItem Cert:\ -CodeSigningCert -Recurse | Where Thumbprint -eq $Properties.CertificateThumbprint;
-
-    foreach ($moduleFile in Get-ModuleFiles) {
-        Copy-Item -Path $moduleFile.FullName -Destination $zipDirectory -Force;
-
-        if ($moduleFile.Extension -in '.ps1','.psm1') {
-            $moduleFilePath = Join-Path $zipDirectory $moduleFile.Name;
-            Write-Verbose ("Signing file '{0}'." -f $moduleFilePath);
-            $signResult = Set-ScriptSigntaure -Path $moduleFilePath -Thumbprint $Properties.CertificateThumbprint -TimeStampServer $Properties.TimeStampServer;
+        }
+        elseif ($PSItem.Name -like '*.ps*') {
+            Write-Host (' Signing {0}' -f $PSItem.FullName) -ForegroundColor Yellow -NoNewline;
+            $signResult = Set-ScriptSignature -Path $PSItem.FullName -Thumbprint $thumbprint -TimeStampServer $timeStampServer -ErrorAction Stop;
+            Write-Host (' {0}.' -f $signResult.Status) -ForegroundColor Green;
         }
     }
 }
 
-task CreateReleaseZip -depends StageReleaseZipFiles {
-    $releaseDirectory = Resolve-Path (Join-Path . $Properties.ReleaseDirectory);
-    $zipFileName = Join-Path $releaseDirectory ("{0}.zip" -f $packageName);
-    Write-Verbose ("Zip release path '{0}'." -f $zipFileName);
-    $zipFile = New-ZipArchive -Path $tempDirectory -DestinationPath $zipFileName;
-    Write-Verbose ("Zip archive '{0}' created." -f $zipFile.FullName);
+# Synopsis: Versions the release module manifest and nuspec file
+Task Version -Depends Deploy {
+
+    Set-ModuleManifestProperty -Path "$releasePath\$moduleName.psd1" -Version $version
+    $nuSpecPath = Join-Path -Path $releasePath -ChildPath "$ModuleName.nuspec"
+    $nuspec = [System.Xml.XmlDocument] (Get-Content -Path $nuSpecPath -Raw)
+    $nuspec.Package.MetaData.Version = $version.ToString()
+    $nuspec.Save($nuSpecPath)
 }
 
-task CreateChocolateyReleaseDirectory {
-    Remove-Item -Path $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue;
-    [ref] $null = New-Item -Path $tempDirectory -ItemType Container;
-    [ref] $null = New-Item -Path "$tempDirectory\tools" -ItemType Container;
+# Synopsis: Publishes release module to PSGallery
+Task Publish_PSGallery -Depends Build {
+
+    Publish-Module -Path $releasePath -NuGetApiKey "$env:gallery_api_key";
+} #end task Publish
+
+# Synopsis: Creates release module Nuget package
+Task Package -Depends Build {
+
+    $targetNuSpecPath = Join-Path -Path $releasePath -ChildPath "$ModuleName.nuspec"
+    NuGet.exe pack "$targetNuSpecPath" -OutputDirectory "$env:TEMP"
 }
 
-task StageChocolateyReleaseFiles -depends CreateChocolateyReleaseDirectory {
-    ## Create .nuspec
-    $nuspec = $module | New-NugetNuspec -LicenseUrl $Properties.LicenseUrl;
-    $nuspecFilename = "$($module.Name).nuspec";
-    $nuspecPath = Join-Path $tempDirectory $nuspecFilename;
-    $nuspec.Save($nuspecPath);
+# Synopsis: Publishes release module to Dropbox repository
+Task Publish_Dropbox -Depends Package {
 
-    ## Create \Tools\ChocolateyInstall.ps1
-    $chocolateyInstallPath = Join-Path (Get-Location) 'ChocolateyInstall.ps1'; 
-    Copy-Item -Path $chocolateyInstallPath -Destination "$tempDirectory\tools\" -Force;
-
-    ## Add Install-ChocolateyZipPackage to the ChocolateyInstall.ps1 file with the relevant download link
-    $downloadUrl = "$($Properties.DownloadBaseUrl)/$packageName.zip";
-    $installChocolateyZipPackage = "Install-ChocolateyZipPackage '{0}' '{1}' '$userPSModulePath';" -f $packageName, $downloadUrl;
-    Add-Content -Path "$tempDirectory\tools\ChocolateyInstall.ps1" -Value $installChocolateyZipPackage;
+    $targetNuPkgPath = Join-Path -Path "$env:TEMP" -ChildPath "$ModuleName.$version.nupkg"
+    Copy-Item -Path $targetNuPkgPath -Destination '~\Dropbox\PSRepository' -Force
 }
 
-task CreateChocolateyReleasePackage -depends StageChocolateyReleaseFiles {
-    
-    $releaseDirectory = Resolve-Path (Join-Path . $Properties.ReleaseDirectory);
-    Push-Location $tempDirectory;
-    Invoke-Expression -Command ('Nuget Pack "{0}" -OutputDirectory "{1}"' -f $nuspecFileName, $releaseDirectory);
-    Pop-Location;
+# Synopsis: Publish test results to AppVeyor
+Task AppVeyor {
+
+    Get-ChildItem -Path "$basePath\*Results*.xml" | Foreach-Object {
+        $address = 'https://ci.appveyor.com/api/testresults/nunit/{0}' -f $env:APPVEYOR_JOB_ID
+        $source = $_.FullName
+        Write-Verbose "UPLOADING TEST FILE: $address $source" -Verbose
+        (New-Object 'System.Net.WebClient').UploadFile( $address, $source )
+    }
 }
 
-task PushReleaseZip -depends CreateReleaseZip {
-    Import-Module Posh-SSH;
-
-}
-
-task RemoveReleaseDirectory {
-    Remove-Item -Path $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue;
-}
-#>
+Task Default -Depends Init, Clean, Test;
+Task Build -Depends Default, Deploy, Version, Sign;
+Task Publish -Depends Build, Package, Publish_PSGallery
+Task Local -Depends Build, Package, Publish_Dropbox

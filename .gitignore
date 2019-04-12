@@ -1,5 +1,4 @@
 Build/
 Release/
-Lib/pack.log
-Lib/error.log
-Lib/push.log
+Lib/
+TestResults.xml

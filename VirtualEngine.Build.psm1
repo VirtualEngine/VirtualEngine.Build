@@ -1,14 +1,30 @@
-## Import the VirtualEngine .ps1 files. This permits loading of the module's functions
-## for unit testing, without having to unload/load the module.
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath Licenses.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Module.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.NuGet.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Git.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Github.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.VisualStudio.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Chocolatey.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.MSI.ps1);
-. (Join-Path -Path (Split-Path -Path $PSCommandPath) -ChildPath VirtualEngine.Token.ps1);
+
+$moduleRoot = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
+
+#region LocalizedData
+$culture = 'en-us'
+if (Test-Path -Path (Join-Path -Path $moduleRoot -ChildPath $PSUICulture)) {
+    $culture = $PSUICulture
+}
+$importLocalizedDataParams = @{
+    BindingVariable = 'localized';
+    Filename = 'VirtualEngine.Build.psd1';
+    BaseDirectory = $moduleRoot;
+    UICulture = $culture;
+}
+Import-LocalizedData @importLocalizedDataParams;
+#endregion LocalizedData
+
+## Dot source all (nested) .ps1 files in the folder, excluding Pester tests
+$srcPath = Join-Path -Path $moduleRoot -ChildPath 'Src'
+Get-ChildItem -Path $srcPath -Include *.ps1 -Recurse |
+ForEach-Object {
+    Write-Verbose -Message ('Importing library\source file ''{0}''.' -f $_.FullName);
+    ## https://becomelotr.wordpress.com/2017/02/13/expensive-dot-sourcing/
+    . ([System.Management.Automation.ScriptBlock]::Create(
+            [System.IO.File]::ReadAllText($_.FullName)
+        ));
+}
 
 ## Download Nuget.exe (if not present)
 $moduleRoot = Split-Path -Parent $MyInvocation.MyCommand.Path;
@@ -20,6 +36,3 @@ if (-not (Test-Path -Path $virtualEngineBuildNugetPath)) {
     }
     Invoke-WebRequest -Uri 'http://nuget.org/nuget.exe' -OutFile $virtualEngineBuildNugetPath;
 }
-
-## Export public functions
-Export-ModuleMember -Function *-*;

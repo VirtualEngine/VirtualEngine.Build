@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<package xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <metadata>
+    <id>virtualengine.build</id>
+    <title>VirtualEngine.Build</title>
+    <version>0.0.0</version>
+    <authors>Iain Brighton</authors>
+    <owners>Virtual Engine</owners>
+    <summary>The VirtualEngine.Build module contains cmdlets that are used to bundle Powershell module and Visual Studio binary releases.</summary>
+    <description>The VirtualEngine.Build module contains cmdlets that are used to bundle Powershell module and Visual Studio binary releases.</description>
+    <projectUrl>https://github.com/VirtualEngine/Build</projectUrl>
+    <copyright>(c) 2019 Virtual Engine Limited. All rights reserved.</copyright>
+    <iconUrl>https://cdn.rawgit.com/VirtualEngine/Compression/38aa3a3c879fd6564d659d41bffe62ec91fb47ab/icon.png</iconUrl>
+    <licenseUrl>https://github.com/VirtualEngine/Build/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags>VirtualEngine Powershell Build Helper</tags>
+  </metadata>
+</package>
